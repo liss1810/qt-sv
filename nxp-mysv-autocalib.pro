@@ -36,7 +36,8 @@ SOURCES += \
     defisheye.cpp \
     grid.cpp \
     masks.cpp \
-    settings.cpp
+    settings.cpp \
+    gpurender.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -47,7 +48,14 @@ HEADERS += \
     grid.hpp \
     masks.hpp \
     lines.hpp \
-    settings.h
+    settings.h \
+    gpurender.h \
+    shaders.hpp
 
 FORMS += \
         mainwindow.ui
+
+RESOURCES += \
+    resources.qrc
+
+DISTFILES +=

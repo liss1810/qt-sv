@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/images">
+        <file>ex1.jpg</file>
+        <file>ex2.jpg</file>
+        <file>ex3.jpg</file>
+        <file>ex4.jpg</file>
+    </qresource>
+    <qresource prefix="/shaders">
+        <file>overlap.fsh</file>
+        <file>nonoverlap.fsh</file>
+        <file>vshader.vsh</file>
+    </qresource>
+</RCC>

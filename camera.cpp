@@ -147,11 +147,6 @@ int Camera::setExtrinsic(const Mat &img)
     img_p.clear();
     if (getImagePoints(und_img, temp.ref_points.size(), img_p) != 0)
         return(-1);
-//    for(int i = 0; i < img_p.size(); i++) {
-//        cv::putText(und_img, to_string(i), img_p.at(i), cv::FONT_HERSHEY_PLAIN,
-//                    1.0, Scalar(0, 0, 233));
-//    }
-//    cv::imshow("fff", und_img);waitKey(0);
 
     /************************ 4. Find an object pose from 3D-2D point correspondences. *************************/
     vector<Point2f> image_points;
@@ -160,6 +155,7 @@ int Camera::setExtrinsic(const Mat &img)
         image_points.push_back(img_p[j]);
         object_points.push_back(Point3f(temp.ref_points[j].x, temp.ref_points[j].y, 0.0));
     }
+//    std::cout << object_points << std::endl;
 
     Mat matImgPoints(image_points);
     Mat matObjPoints(object_points);

@@ -8,6 +8,8 @@
 #include "masks.hpp"
 #include "settings.h"
 
+#include "gpurender.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -27,6 +29,8 @@ private:
     const std::string dataPath;
     Settings *settings;
 
+    GpuRender *render;
+    QTimer *timer;
     void saveGrids();
 };
 

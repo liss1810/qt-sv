@@ -1,7 +1,10 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "gpurender.h"
+
 #include <QFile>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -39,9 +42,7 @@ MainWindow::MainWindow(QWidget *parent) :
                     settings->radiusScale * pcam->getBaseRadius(),
                     settings->stepX);
         nopZ = std::min(nopZ, tmp);
-        qInfo() << "nopz tmp" << tmp;
     }
-    qInfo() << nopZ;
 
     for(uint i = 0; i < cameras.size(); i++) {
         CurvilinearGrid *pgrid =
@@ -52,7 +53,14 @@ MainWindow::MainWindow(QWidget *parent) :
         grids.push_back(pgrid);
     }
 
-    saveGrids();
+//    saveGrids();
+
+//    render = new GpuRender;
+//    setCentralWidget(render);
+
+//    timer = new QTimer(this);
+//    connect(timer, SIGNAL(timeout()), render, SLOT(update()));
+//    timer->start(30);
 }
 
 MainWindow::~MainWindow()
@@ -83,4 +91,8 @@ void MainWindow::saveGrids()
     Masks masks;
     masks.createMasks(cameras, seams, settings->smoothAngle); // Calculate masks for blending
     masks.splitGrids();
+
+//    Compensator compensator(Size(param.disp_width, param.disp_height)); // Exposure correction
+//    compensator.feed(cameras, seams);
+//    compensator.save((char*)"./compensator");
 }
