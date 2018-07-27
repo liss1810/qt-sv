@@ -180,9 +180,9 @@ int Camera::setExtrinsic(const Mat &img)
     return(0);
 }
 
-void Camera::updateLUT(float scale)
+void Camera::updateLUT(float sf_)
 {
-    sf = scale;
+    sf = sf_;
     model.createLUT(xmap, ymap, sf);
 }
 

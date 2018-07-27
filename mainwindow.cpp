@@ -5,53 +5,66 @@
 
 #include <QFile>
 #include <QTimer>
+#include <QWizard>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    dataPath(QApplication::applicationDirPath().toStdString() + "/data/")
+    dataPath(QApplication::applicationDirPath().toStdString() + "/../Content/")
 {
     ui->setupUi(this);
 
     settings = new Settings(dataPath + "settings.xml");
 
+    std::string cameraModelPath = dataPath + "camera_models/";
     for(uint i = 0; i < settings->camparams.size(); i++) {
-        std::string calibResTxt = dataPath + "calib_results_"
+        std::string calibResTxt = cameraModelPath + "calib_results_"
                 + std::to_string(i + 1) + ".txt";
         Camera *pcam = new Camera(calibResTxt, i, settings->camparams[i]->sf,
                                   settings->camparams[i]->roi,
                                   settings->camparams[i]->contourMinSize);
-        pcam->setIntrinsic(dataPath, "frame" + std::to_string(i + 1) + "_",
-                           settings->camparams[i]->chessboardNum,
-                           settings->chessboardSize);
-        pcam->setTemplate(dataPath + "template_" + std::to_string(i + 1) + ".txt");
+        if (pcam->setIntrinsic(cameraModelPath + "chessboard_" + std::to_string(i + 1) + "/",
+                               "frame" + std::to_string(i + 1) + "_",
+                               settings->camparams[i]->chessboardNum,
+                               settings->chessboardSize)) {
+            QMessageBox::critical(this, " ", "set intrinsic error",
+                                  QMessageBox::Cancel);
+            exit(-1);
+        }
+        if (pcam->setTemplate(dataPath + "template/" +
+                              "template_" + std::to_string(i + 1) + ".txt")) {
+            QMessageBox::critical(this, " ", "set template error",
+                                  QMessageBox::Cancel);
+            exit(-1);
+        }
 
         cameras.push_back(pcam);
     }
     Camera::normTemplate(cameras);
 
-    //extrinsic
-    for(uint i = 0; i < cameras.size(); i++) {
-        cv::Mat dist = cv::imread(dataPath + "ex" + std::to_string(i + 1) + ".jpg");
-        cameras[i]->setExtrinsic(dist);
-    }
+//    //extrinsic
+//    for(uint i = 0; i < cameras.size(); i++) {
+//        cv::Mat dist = cv::imread(dataPath + "ex" + std::to_string(i + 1) + ".jpg");
+//        cameras[i]->setExtrinsic(dist);
+//    }
 
-    int nopZ = settings->nopZ;
-    for(Camera *pcam : cameras) {
-        int tmp = pcam->getBowlHeight(
-                    settings->radiusScale * pcam->getBaseRadius(),
-                    settings->stepX);
-        nopZ = std::min(nopZ, tmp);
-    }
+//    int nopZ = settings->nopZ;
+//    for(Camera *pcam : cameras) {
+//        int tmp = pcam->getBowlHeight(
+//                    settings->radiusScale * pcam->getBaseRadius(),
+//                    settings->stepX);
+//        nopZ = std::min(nopZ, tmp);
+//    }
 
-    for(uint i = 0; i < cameras.size(); i++) {
-        CurvilinearGrid *pgrid =
-                new CurvilinearGrid(settings->angles, settings->startAngle,
-                                    nopZ, settings->stepX);
-        pgrid->createGrid(cameras[i],
-                          settings->radiusScale * cameras[i]->getBaseRadius());
-        grids.push_back(pgrid);
-    }
+//    for(uint i = 0; i < cameras.size(); i++) {
+//        CurvilinearGrid *pgrid =
+//                new CurvilinearGrid(settings->angles, settings->startAngle,
+//                                    nopZ, settings->stepX);
+//        pgrid->createGrid(cameras[i],
+//                          settings->radiusScale * cameras[i]->getBaseRadius());
+//        grids.push_back(pgrid);
+//    }
 
 //    saveGrids();
 
@@ -65,6 +78,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+//    cv::FileStorage fs(dataPath + "status.xml", cv::FileStorage::WRITE);
+//    fs << "readyToShow" << readyToShow;
+
     delete ui;
     delete settings;
     for(Camera *pcam : cameras) {

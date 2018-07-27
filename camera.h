@@ -35,7 +35,7 @@ public:
     int setTemplate(const std::string &tempPath);
     static void normTemplate(std::vector<Camera *> &cameras);
     int setExtrinsic(const cv::Mat &img);
-    void updateLUT(float scale);
+    void updateLUT(float sf_);
     void setCntr_min_size(int value) { cntrMinSize = value; }
     void defisheye(Mat &img, Mat &out) {remap(img, out, xmap, ymap, cv::INTER_LINEAR);}
     double getBaseRadius() {return radius;}

@@ -28,7 +28,6 @@ private:
     vector<CurvilinearGrid*> grids;	// Grids
     const std::string dataPath;
     Settings *settings;
-
     GpuRender *render;
     QTimer *timer;
     void saveGrids();
