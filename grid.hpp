@@ -36,7 +36,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "camera.h"
+#include "cameracalibrator.h"
 
 using namespace cv;
 using namespace std;
@@ -145,7 +145,7 @@ class CurvilinearGrid {
 		 * @remarks 		The function defines 3D grid, generates triangles from it and saves the triangles into file.
 		 *
 		 **************************************************************************************************************/
-		void createGrid(Camera *camera, double radius);
+        void createGrid(CameraCalibrator *camera, double radius);
 
 	
 		int getGrid(float** points);
@@ -166,7 +166,7 @@ class CurvilinearGrid {
 		 * 						index = 3 - 270 degree clockwise rotation;
 		 *
 		 **************************************************************************************************************/
-	void saveGrid(Camera* camera);
+    void saveGrid(CameraCalibrator* camera);
 	private:
 		CameraInfo cam_info;
 	
@@ -190,7 +190,7 @@ class CurvilinearGrid {
 		 * 					all point which are defined on 3d grid but aren't defined on camera frame with border values.
 		 *
 		 **************************************************************************************************************/
-		void reorgGrid(double radius, Camera* camera);
+        void reorgGrid(double radius, CameraCalibrator* camera);
 
 		/**************************************************************************************************************
 		 *
@@ -217,7 +217,7 @@ class CurvilinearGrid {
 		 *					- 8th point is located on flat circle base (z = 0). It is the rightmost point with minimum value of y coordinate.
 		 *
 		 **************************************************************************************************************/
-		void findSeam(Camera* camera, vector<Point3f> &seam_points);
+        void findSeam(CameraCalibrator* camera, vector<Point3f> &seam_points);
 
 
 };
@@ -284,7 +284,7 @@ class RectilinearGrid {
 		 * @remarks 		The function defines 3D grid, generates triangles from it and saves the triangles into file.
 		 *
 		 **************************************************************************************************************/
-		void createGrid(Camera *camera, double radius);
+        void createGrid(CameraCalibrator *camera, double radius);
 	
 	
 	int getGrid(float** points);
@@ -306,7 +306,7 @@ class RectilinearGrid {
 		 * 						index = 3 - 270 degree clockwise rotation;
 		 *
 		 **************************************************************************************************************/
-	void saveGrid(Camera* camera);
+    void saveGrid(CameraCalibrator* camera);
 	
 	
 	private:
@@ -343,7 +343,7 @@ class RectilinearGrid {
 		 *					- 8th point is located on flat circle base (z = 0). It is the rightmost point with minimum value of y coordinate;
 		 *
 		 **************************************************************************************************************/
-		void findSeam(Camera* camera, vector<Point3f> &seam);
+        void findSeam(CameraCalibrator* camera, vector<Point3f> &seam);
 
 
 };

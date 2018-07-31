@@ -11,9 +11,9 @@
 #include <QEvent>
 #include <QGesture>
 #include <QtMath>
+#include <QApplication>
 
-#define EGL_API_FB
-#include <EGL/egl.h>
+#include <GLES/egl.h>
 
 #ifndef GL_VIV_direct_texture
 #define GL_VIV_YV12                     0x8FC0
@@ -29,8 +29,6 @@
 #define GL_CLAMP_TO_BORDER_VIV         0x812D
 #endif
 
-#define GL_PIXEL_TYPE GL_RGBA
-#define CAM_PIXEL_TYPE V4L2_PIX_FMT_RGB32
 
 //Model Loader
 glm::mat4 gProjection;	// Initialization is needed
@@ -45,31 +43,25 @@ glm::vec3 car_scale = glm::vec3(1.0f, 1.0f, 1.0f);
 #define CAM_LIMIT_ZOOM_MAX -2.5f
 
 GpuRender::GpuRender(QWidget *parent) :
-    QOpenGLWidget(parent),
+    QOpenGLWidget(parent)
 //    pFNglTexDirectVIVMap(NULL),
 //    pFNglTexDirectInvalidateVIV(NULL),
 //    camParas(NULL),
-    m_program(0),
-    pblockBuf(NULL)
 //    paintFlag(false)
 {
-    setAttribute(Qt::WA_AlwaysStackOnTop);
+//    setAttribute(Qt::WA_AlwaysStackOnTop);
     setAttribute(Qt::WA_AcceptTouchEvents);
 
-//    pFNglTexDirectVIVMap = (PFNGLTEXDIRECTVIVMAP)
-//            eglGetProcAddress("glTexDirectVIVMap");
-//    if(pFNglTexDirectVIVMap == NULL) {
-//        qInfo() << "error no glTexDirectVIVMap function";
-//    }
+    pFNglTexDirectVIVMap = (PFNGLTEXDIRECTVIVMAP)
+            eglGetProcAddress("glTexDirectVIVMap");
+    if(pFNglTexDirectVIVMap == NULL) {
+        qInfo() << "error no glTexDirectVIVMap function";
+    }
 
-//    pFNglTexDirectInvalidateVIV = (PFNGLTEXDIRECTINVALIDATEVIV)
-//            eglGetProcAddress("glTexDirectInvalidateVIV");
-//    if(pFNglTexDirectInvalidateVIV == NULL) {
-//        qInfo() << "error no glTexDirectInvalidateVIV function";
-//    }
-
-    for(unsigned char i = 0; i < PLANES; i++) {
-        alphaMasks[i] = NULL;
+    pFNglTexDirectInvalidateVIV = (PFNGLTEXDIRECTINVALIDATEVIV)
+            eglGetProcAddress("glTexDirectInvalidateVIV");
+    if(pFNglTexDirectInvalidateVIV == NULL) {
+        qInfo() << "error no glTexDirectInvalidateVIV function";
     }
 
 //    camera3D = new Camera3D;
@@ -81,361 +73,366 @@ GpuRender::GpuRender(QWidget *parent) :
 GpuRender::~GpuRender()
 {
     makeCurrent();
+    for(QOpenGLShaderProgram *m_program : renderPrograms)
+        delete m_program;
 
-    for(unsigned char i = 0; i < PLANES; i++) {
-        if(alphaMasks[i]) {
-            delete [] alphaMasks[i];
-        }
+    for(v4l2Camera &cap : v4l2_cameras) {
+        cap.stopCapturing();
     }
-    delete m_program;
 
-//    foreach (auto &item, objModels) {
-//        delete item;
-//    }
-//    delete camera3D;
+    for(vertices_obj &obj : v_obj) {
+        glDeleteTextures(1, &obj.tex);
+        glDeleteBuffers(1, &obj.vbo);
+    }
     doneCurrent();
 }
 
-//void GpuRender::allocate_buffer(uint num)
-//{
-//    buffers.fill(NULL, num);
-////    pTexBuffers.assign(num, NULL);
-//}
+int GpuRender::setProgram(uint index)
+{
+    currentProgram = index;
+}
 
-//void GpuRender::setBuf(QVector<V4l2Capture::CapBuffers *> &pbuf)
-//{
-//    for(int i = 0; i < buffers.size(); ++i) {
-//        buffers[i] = pbuf[i];
-//    }
+int GpuRender::addCamera(int index, int width, int height)
+{
+    string dev_name = "/dev/video" + to_string(index);
 
-////    for(uint i = 0; i < pTexBuffers.size(); ++i) {
-////        pTexBuffers[i] = pbuf[i]->start;
-//    //    }
-//}
+    v4l2Camera v4l2_camera(width, height, CAM_PIXEL_TYPE, V4L2_MEMORY_MMAP, dev_name.c_str());
+    v4l2_cameras.push_back(v4l2_camera);
 
-//void GpuRender::enablePaint()
-//{
-//    paintFlag = 1;
-//}
+    int current_index = v4l2_cameras.size() - 1;
 
-//void GpuRender::setCameraPara(QVector<CameraParameter> &p)
-//{
-//    camParas = &p;
-//}
+    if (v4l2_cameras[current_index].captureSetup() == -1)
+    {
+        cout << "v4l_capture_setup failed camera " << index << endl;
+        return (-1);
+    }
 
-static const GLint eglTexture[4] = {
-    GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3
-};
+    return (current_index);
+}
+
+int GpuRender::addMesh(string filename)
+{
+    makeCurrent();
+
+    ///////////////////////////////// Load vertices arrays ///////////////////////////////
+    vertices_obj vo_tmp;
+    GLfloat* vert;
+    vLoad(&vert, &vo_tmp.num, filename);
+
+    //////////////////////// Camera textures initialization /////////////////////////////
+    glGenVertexArrays(1, &vo_tmp.vao);
+    glGenBuffers(1, &vo_tmp.vbo);
+
+    bufferObjectInit(&vo_tmp.vao, &vo_tmp.vbo, vert, vo_tmp.num);
+    texture2dInit(&vo_tmp.tex);
+
+    v_obj.push_back(vo_tmp);
+
+    if(vert) free(vert);
+
+    doneCurrent();
+
+    mesh_index.push_back(v_obj.size() - 1);
+
+    return (v_obj.size() - 1);
+}
+
+int GpuRender::runCamera(int index)
+{
+    if (v4l2_cameras[index].startCapturing() == -1) return (-1);
+    if (v4l2_cameras[index].getFrame() == -1) return (-1);
+    return 0;
+}
+
+void GpuRender::reloadMesh(int index, string filename)
+{
+    makeCurrent();
+
+    GLfloat* vert;
+    vLoad(&vert, &v_obj[index].num, filename);
+    glBindBuffer(GL_ARRAY_BUFFER, v_obj[index].vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * v_obj[index].num, &vert[0], GL_DYNAMIC_DRAW);
+    if(vert) free(vert);
+
+    doneCurrent();
+}
+
+int GpuRender::changeMesh(Mat xmap, Mat ymap, int density, Point2f top, int index)
+{
+    makeCurrent();
+
+    if ((xmap.rows == 0) || (xmap.cols == 0) || (ymap.rows == 0) || (ymap.cols == 0))
+    {
+        cout << "Mesh was not generated. LUTs are empty" << endl;
+        return (-1);
+    }
+
+    int rows = xmap.rows / density;
+    int cols = xmap.cols / density;
+
+    GLfloat* vert = NULL;
+    v_obj[index].num = 6 * rows * cols;
+    vert = (GLfloat*)calloc((int)(v_obj[index].num * 5), sizeof(GLfloat));
+
+    if (vert == NULL) {
+        cout << "Memory allocation did not complete successfully" << endl;
+        return(-1);
+    }
+
+    float x_norm = 1.0 / xmap.cols;
+    float y_norm = 1.0 / xmap.rows;
+
+
+    int k =  0;
+    for (int row = 1; row < rows; row++)
+        for (int col = 1; col < cols; col++)
+        {
+            /****************************************** Get triangles *********************************************
+             *   							  v3 _  v2
+             *   Triangles orientation: 		| /|		1 triangle (v4-v1-v2)
+             *   								|/_|		2 triangle (v4-v2-v3)
+             *   							  v4   v1
+             *******************************************************************************************************/
+            // Vertices
+            Point2f v1 = Point2f(col * density, row * density);
+            Point2f v2 = Point2f(col * density, (row - 1) * density);
+            Point2f v3 = Point2f((col - 1) * density, (row - 1) * density);
+            Point2f v4 = Point2f((col - 1) * density, row * density);
+
+                                // Texels
+            Point2f p1 = Point2f(xmap.at<float>(v1), ymap.at<float>(v1));
+            Point2f p2 = Point2f(xmap.at<float>(v2), ymap.at<float>(v2));
+            Point2f p3 = Point2f(xmap.at<float>(v3), ymap.at<float>(v3));
+            Point2f p4 = Point2f(xmap.at<float>(v4), ymap.at<float>(v4));
+
+            if ((p2.x > 0) && (p2.y > 0) && (p2.x < xmap.cols) && (p2.y < xmap.rows) &&	// Check if p2 belongs to the input frame
+               (p4.x > 0) && (p4.y > 0) && (p4.x < xmap.cols) && (p4.y < xmap.rows))		// Check if p4 belongs to the input frame
+            {
+                // Save triangle points to the output file
+                /*******************************************************************************************************
+                 *   							  		v2
+                 *   1 triangle (v4-v1-v2): 		  /|
+                 *   								 /_|
+                 *   							  v4   v1
+                 *******************************************************************************************************/
+                if ((p1.x >= 0) && (p1.y >= 0) && (p1.x < xmap.cols) && (p1.y < xmap.rows))	// Check if p1 belongs to the input frame
+                {
+                    vert[k] = v1.x * x_norm + top.x;
+                    vert[k + 1] = (top.y - v1.y * y_norm);
+                    vert[k + 2] = 0;
+                    vert[k + 3] = p1.x * x_norm;
+                    vert[k + 4] = p1.y * y_norm;
+
+                    vert[k + 5] = v2.x * x_norm + top.x;
+                    vert[k + 6] = (top.y - v2.y * y_norm);
+                    vert[k + 7] = 0;
+                    vert[k + 8] = p2.x * x_norm;
+                    vert[k + 9] = p2.y * y_norm;
+
+                    vert[k + 10] = v4.x * x_norm + top.x;
+                    vert[k + 11] = (top.y - v4.y * y_norm);
+                    vert[k + 12] = 0;
+                    vert[k + 13] = p4.x * x_norm;
+                    vert[k + 14] = p4.y * y_norm;
+
+                    k += 15;
+                }
+
+                /*******************************************************************************************************
+                 *   							  v3 _	v2
+                 *   2 triangle (v4-v2-v3): 		| /
+                 *   								|/
+                 *   							  v4
+                 *******************************************************************************************************/
+                if ((p3.x > 0) && (p3.y > 0) && (p3.x < xmap.cols) && (p3.y < xmap.rows))	// Check if p3 belongs to the input frame)
+                {
+                    vert[k] = v4.x * x_norm + top.x;
+                    vert[k + 1] = (top.y - v4.y * y_norm);
+                    vert[k + 2] = 0;
+                    vert[k + 3] = p4.x * x_norm;
+                    vert[k + 4] = p4.y * y_norm;
+
+                    vert[k + 5] = v2.x * x_norm + top.x;
+                    vert[k + 6] = (top.y - v2.y * y_norm);
+                    vert[k + 7] = 0;
+                    vert[k + 8] = p2.x * x_norm;
+                    vert[k + 9] = p2.y * y_norm;
+
+                    vert[k + 10] = v3.x * x_norm + top.x;
+                    vert[k + 11] = (top.y - v3.y * y_norm);
+                    vert[k + 12] = 0;
+                    vert[k + 13] = p3.x * x_norm;
+                    vert[k + 14] = p3.y * y_norm;
+
+                    k += 15;
+                }
+            }
+    }
+
+
+    glBindBuffer(GL_ARRAY_BUFFER, v_obj[index].vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * v_obj[index].num, &vert[0], GL_DYNAMIC_DRAW);
+    if(vert) free(vert);
+    doneCurrent();
+
+    return (0);
+}
+
+Mat GpuRender::takeFrame(int index)
+{
+    Mat out;
+
+    // Lock the camera frame
+    pthread_mutex_lock(&v4l2_cameras[index].th_mutex);
+
+    Mat rgba(v4l2_cameras[index].getHeight(),
+             v4l2_cameras[index].getWidth(),
+             CV_8UC4, (char*)v4l2_cameras[index].buffers[v4l2_cameras[index].fill_buffer_inx].start);
+    cvtColor(rgba, out, CV_RGBA2RGB);
+
+    pthread_mutex_unlock(&v4l2_cameras[index].th_mutex);
+
+    return out;
+}
+
+int GpuRender::addBuffer(GLfloat *buf, int num)
+{
+    makeCurrent();
+
+    ///////////////////////////////// Load vertices arrays ///////////////////////////////
+    vertices_obj vo_tmp;
+    vo_tmp.num = num;
+
+    //////////////////////// Camera textures initialization /////////////////////////////
+    glGenVertexArrays(1, &vo_tmp.vao);
+    glGenBuffers(1, &vo_tmp.vbo);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vo_tmp.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 3 * num, &buf[0], GL_DYNAMIC_DRAW);
+
+    v_obj.push_back(vo_tmp);
+
+    doneCurrent();
+
+    return (v_obj.size() - 1);
+}
+
+int GpuRender::setBufferAsAttr(int buf_num, int prog_num, char *atr_name)
+{
+    if ((buf_num < 0) || (buf_num >= (int)v_obj.size()) || (prog_num < 0) || (prog_num >= (int)renderPrograms.size()))
+        return (-1);
+
+    makeCurrent();
+
+    glBindBuffer(GL_ARRAY_BUFFER, v_obj[buf_num].vbo);
+    glBindVertexArray(v_obj[buf_num].vao);
+    GLint position_attribute = glGetAttribLocation(renderPrograms.at(prog_num)->programId(), atr_name);
+    glVertexAttribPointer(position_attribute, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(position_attribute);
+
+    doneCurrent();
+
+    return (0);
+}
+
+void GpuRender::renderBuffer(int buf_num, int type, int vert_num)
+{
+    makeCurrent();
+
+    renderPrograms.at(1)->bind();
+
+    glBindVertexArray(v_obj[buf_num].vao);
+    switch (type)
+    {
+    case 0:
+        glLineWidth(2.0);
+        glDrawArrays(GL_LINES, 0, vert_num);
+        break;
+    case 1:
+        glBeginTransformFeedback(GL_POINTS);
+        glDrawArrays(GL_POINTS, 0, vert_num);
+        glEndTransformFeedback();
+        break;
+    default:
+        break;
+    }
+
+    doneCurrent();
+}
+
+void GpuRender::updateBuffer(int buf_num, GLfloat *buf, int num)
+{
+    v_obj[buf_num].num = num;
+    glBindBuffer(GL_ARRAY_BUFFER, v_obj[buf_num].vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 3 * num, &buf[0], GL_DYNAMIC_DRAW);
+}
 
 void GpuRender::initializeGL()
 {
     initializeOpenGLFunctions();
 
-//    m_program = new QOpenGLShaderProgram;
-//    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/vshader.vsh");
-//    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/fshader.fsh");
-//    m_program->link();
-//    m_program->bind();
-//    programId = m_program->programId();
+    QOpenGLShaderProgram *m_program = new QOpenGLShaderProgram;
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.vsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/fshader.fsh");
+    m_program->link();
+    renderPrograms.push_back(m_program);
 
-//    textureLoc = m_program->uniformLocation("s_texture");
-//    glGenTextures(1, &textureCam);
-//    glUniform1i(textureLoc, 0);
+    m_program = new QOpenGLShaderProgram;
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/line.vsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/line.fsh");
+    m_program->link();
+    renderPrograms.push_back(m_program);
 
-//    glBindTexture(GL_TEXTURE_2D, textureCam);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    currentProgram = 0;
 
-
-//    extrinsicLoc = glGetUniformLocation(programId, "extrinsic");
-
-//    QString modelDir(QApplication::applicationDirPath() + "/data/");
-//    QVector<QString> modelName;
-//    modelName << "bowlfront.obj" << "bowlleft.obj"
-//              << "bowlback.obj" << "bowlright.obj";
-//    for(int i = 0; i < modelName.size(); i++) {
-//        objModels.append(new Model( (modelDir + modelName[i]).toStdString() ));
-//    }
-
-
-//    glEnable(GL_BLEND);
-//    glBlendFunc(GL_ONE, GL_ONE);
-//    glBlendColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-    /* =========================================== */
-
-//    if(setParam(&param) == -1)
-//        exit(-1);
-
-    if (programsInit() == -1)
-    {
-        exit(-1);
-    }
-
-    if(!RenderInit()) {
-        qInfo() << "render init error";
-        return;
-    }
-    for(int i = 0; i < 4; i++) {
-        textures.append(new QOpenGLTexture((QImage(":/images/ex" + QString::number(i + 1) + ".jpg")),
-                           QOpenGLTexture::DontGenerateMipMaps));
+    for(uint i = 0; i < 4; i++) {
+        addMesh(QApplication::applicationDirPath().toStdString() + "/Content/" +
+                "/meshes/original/mesh" +
+                to_string(i + 1));
     }
 }
 
 void GpuRender::paintGL()
 {
-//    if(paintFlag) {
+    // Clear background.
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-//        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-//        glClear(GL_COLOR_BUFFER_BIT);
-//    //    glViewport(0,0,720, 480);
-
-//        m_program->setUniformValue("projection", camera3D->perspectMatrix());
-//        m_program->setUniformValue("view", camera3D->viewMatrix());
-//    //    for(uint i = 0; i < pTexBuffers.size(); i++) {
-
-//        for(int i = 0; i < buffers.size(); i++) {
-
-//            GLuint phy = ~0U;
-//    //        pTexBuffers[i] = NULL;
-//            glActiveTexture(GL_TEXTURE0);
-//            glBindTexture(GL_TEXTURE_2D, textureCam);
-
-//            (*pFNglTexDirectVIVMap)(GL_TEXTURE_2D, 720, 480, GL_VIV_UYVY,
-//                                    /*&pTexBuffers[i]*/&(buffers[i]->start),
-//                                    &phy);
-//            (*pFNglTexDirectInvalidateVIV)(GL_TEXTURE_2D);
-//            glActiveTexture(GL_TEXTURE1);
-//            glBindTexture(GL_TEXTURE_2D, maskTextureID[i]);
-
-//            m_program->bind();
-//            m_program->setUniformValue("intrinsic", camParas->at(i).qIntrinsic);
-//            m_program->setUniformValue("distCoeffs", camParas->at(i).qDistCoeffs);
-//            glUniformMatrix4x3fv(extrinsicLoc, 1, GL_FALSE,
-//                                 camParas->at(i).qExtrinsic.data());
-//            objModels.at(i)->Draw(programId);
-//        }
-//    }
-
-    // Calculate ModelViewProjection matrix
-    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(px, py, pz)), ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1));
-    glm::mat4 mvp = gProjection*mv;
-    glm::mat3 mn = glm::mat3(glm::rotate(glm::rotate(glm::mat4(1.0f), ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 1, 0)));
-
-    GLuint mrtFBO = 0;
-//    if (mrt->isEnabled())
-//    {
-//        mrtFBO = mrt->getFBO();
-//        glBindFramebuffer(GL_FRAMEBUFFER, mrtFBO);
-//        GLenum drawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-//        glDrawBuffers(1, drawBuffers); // "1" is the size of DrawBuffers
-//    }
-
-//    if (expcor < 600)
-//    {
-        glEnable(GL_BLEND);
-        glDisable(GL_DEPTH_TEST);
-
-        // Clear background.
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Render camera frames
-        int i;
-
-        // Render overlap regions of camera frame with blending
-//        glUseProgram(renderProgram.);
-        renderProgram.bind();
-        for (int camera = 0; camera < CAMERA_NUM; camera++)
-        {
-            // Lock the camera frame
-//            pthread_mutex_lock(&v4l2_cameras[camera].th_mutex);
-
-            // Get index of the newes camera buffer
-//            if (v4l2_cameras[camera].fill_buffer_inx == -1) i = 0;
-//            else  i = v4l2_cameras[camera].fill_buffer_inx;
+    int i;
+    renderPrograms.at(0)->bind();
 
 
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, txtMask[camera]);
-            glUniform1i(glGetUniformLocation(renderProgram.programId(), "myMask"), 1);
+    for(uint j = 0; j < v4l2_cameras.size(); j++) {
+        pthread_mutex_lock(&v4l2_cameras[j].th_mutex);
 
-            // Set gain value for the camera
-//            glUniform4f(locGain[0], gain->Gains::gain[camera][0], gain->Gains::gain[camera][1], gain->Gains::gain[camera][2], 1.0);
+        // Get index of the newes camera buffer
+        if (v4l2_cameras[j].fill_buffer_inx == -1) i = 0;
+        else  i = v4l2_cameras[j].fill_buffer_inx;
 
-            // Render overlap regions of camera frame with blending
-            glBindVertexArray(VAO[2 * camera]);
-            glActiveTexture(GL_TEXTURE0);
-//            glBindTexture(GL_TEXTURE_2D, gTexObj[2 * camera]);
-            textures.at(camera)->bind();
-            glUniform1i(glGetUniformLocation(renderProgram.programId(), "myTexture"), 0);
-//            mapFrame(i, camera);
+        glBindVertexArray(v_obj[j].vao);
+        glActiveTexture(GL_TEXTURE0);
 
-            GLint mvpLoc = glGetUniformLocation(renderProgram.programId(), "mvp");
-            glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+        glBindTexture(GL_TEXTURE_2D, v_obj[j].tex);
+        glUniform1i(renderPrograms.at(0)->uniformLocation("myTexture"), 0);
 
-            glDrawArrays(GL_TRIANGLES, 0, vertices[2 * camera]);
-            glBindVertexArray(0);
+        (*pFNglTexDirectVIVMap)(GL_TEXTURE_2D, v4l2_cameras[j].getWidth(),
+                                v4l2_cameras[j].getHeight(),
+                                GL_PIXEL_TYPE,
+                                (GLvoid **)& v4l2_cameras[j].buffers[i].start,
+                                (const GLuint *)(&v4l2_cameras[j].buffers[i].offset));
+        (*pFNglTexDirectInvalidateVIV)(GL_TEXTURE_2D);
 
-            // Release camera frame
-//            pthread_mutex_unlock(&v4l2_cameras[camera].th_mutex);
-        }
+        glDrawArrays(GL_TRIANGLES, 0, v_obj[j].num);
 
+        glBindVertexArray(0);
+        pthread_mutex_unlock(&v4l2_cameras[j].th_mutex);
+    }
 
-
-
-
-        // Render non-overlap region of camera frame without blending
-//        glUseProgram(renderProgramWB.getHandle()); 	// Use fragment shader without blending
-        renderProgramWB.bind();
-        glDisable(GL_BLEND);
-        for (int camera = 0; camera < CAMERA_NUM; camera++)
-        {
-            // Lock the camera frame
-//            pthread_mutex_lock(&v4l2_cameras[camera].th_mutex);
-
-            // Get index of the newes camera buffer
-//            if (v4l2_cameras[camera].fill_buffer_inx == -1) i = 0;
-//            else  i = v4l2_cameras[camera].fill_buffer_inx;
-
-            // Set gain value for the camera
-//            glUniform4f(locGain[1], gain->Gains::gain[camera][0], gain->Gains::gain[camera][1], gain->Gains::gain[camera][2], 1.0); // Set gain value for the camera
-
-            // Render non-overlap region of camera frame without blending
-            glBindVertexArray(VAO[2 * camera + 1]);
-            glActiveTexture(GL_TEXTURE0);
-//            glBindTexture(GL_TEXTURE_2D, gTexObj[2 * camera+ 1]);
-            textures.at(camera)->bind();
-            glUniform1i(glGetUniformLocation(renderProgramWB.programId(), "myTexture"), 0);
-//            mapFrame(i, camera);
-
-            GLint mvpLoc = glGetUniformLocation(renderProgramWB.programId(), "mvp");
-            glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
-
-            glDrawArrays(GL_TRIANGLES, 0, vertices[2 * camera+ 1]);	// Draw texture
-            glBindVertexArray(0);
-
-            // Release camera frame
-//            pthread_mutex_unlock(&v4l2_cameras[camera].th_mutex);
-        }
-
-//        // Render car model
-//        glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f), car_scale), glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
-//            glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0));
-//        mvp = gProjection * mv * carModelMatrix;
-//        mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f), ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
-//                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
-
-////        glUseProgram(carModelProgram.getHandle());
-//        carModelProgram.bind();
-//        glEnable(GL_DEPTH_TEST);
-
-        // Set matrices
-        glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(mvp));
-        glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv));
-        glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(mn));
-
-//        modelLoader.Draw(carModelProgram.programId());
-
-        glEnable(GL_BLEND);
-        glDisable(GL_DEPTH_TEST);
-//        fpsValue = report_fps();
-//        expcor++;
-//    }
-//    else
-//    {
-//        // Try to lock gain mutex
-//        if (pthread_mutex_trylock(&gain->Gains::th_mutex) == 0)
-//        {
-//            glUseProgram(exposureCorrectionProgram.getHandle());
-//            glBindFramebuffer(GL_FRAMEBUFFER, fbo);	// Change frame buffer
-
-//            glEnable(GL_BLEND);
-
-//            int i;
-//            // Render camera overlap regions
-//            for (int camera = 0; camera < CAMERA_NUM; camera++)
-//            {
-//                // Lock the camera frame
-//                pthread_mutex_lock(&v4l2_cameras[camera].th_mutex);
-
-//                // Get index of the newes camera buffer
-//                if (v4l2_cameras[camera].fill_buffer_inx == -1) i = 0;
-//                else  i = v4l2_cameras[camera].fill_buffer_inx;
-
-//                // Clear background.
-//                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-//                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-//                // Render camera overlap regions
-//                glBindVertexArray(VAO_EC[camera]);
-//                glActiveTexture(GL_TEXTURE0);
-//                glBindTexture(GL_TEXTURE_2D, gTexObj[2 * camera]);
-//                glUniform1i(glGetUniformLocation(exposureCorrectionProgram.getHandle(), "myTexture"), 0);
-//                mapFrame(i, camera);
-
-//                glDrawArrays(GL_TRIANGLES, 0, vertices_ec[camera]);
-//                glBindVertexArray(0);
-
-//                //char rt[10];
-//                //sprintf(rt, "PrScr%d.jpg", camera);
-//                //Mat PrScr(viewport[3], viewport[2], CV_8UC(4));
-//                //glReadPixels(0, 0, viewport[2], viewport[3], GL_RGBA, GL_UNSIGNED_BYTE, PrScr.data);
-//                //imwrite(rt, PrScr);
-
-//                glReadPixels(gain->compensator->getFlipROI(camera).x,
-//                    gain->compensator->getFlipROI(camera).y,
-//                    gain->compensator->getFlipROI(camera).width,
-//                    gain->compensator->getFlipROI(camera).height,
-//                    GL_RGBA,
-//                    GL_UNSIGNED_BYTE,
-//                    gain->Gains::overlap_roi[camera][0].data);
-//                int next = NEXT(camera, camera_num - 1);
-//                glReadPixels(gain->compensator->getFlipROI(next).x,
-//                    gain->compensator->getFlipROI(next).y,
-//                    gain->compensator->getFlipROI(next).width,
-//                    gain->compensator->getFlipROI(next).height,
-//                    GL_RGBA,
-//                    GL_UNSIGNED_BYTE,
-//                    gain->Gains::overlap_roi[camera][1].data);
-
-//                //char name[10];
-//                //sprintf(name, "%d.jpg", camera);
-//                //imwrite(name, overlap_roi[camera][0]);
-//                //sprintf(name, "%d_.jpg", camera);
-//                //imwrite(name, overlap_roi[camera][1]);
-
-
-//                // Release camera frame
-//                pthread_mutex_unlock(&v4l2_cameras[camera].th_mutex);
-//            }
-
-//            // Release gain mutex
-//            pthread_mutex_unlock(&gain->Gains::th_mutex);
-//            // Release gain semaphore
-//            sem_post(&gain->Gains::th_semaphore);
-//            glBindFramebuffer(GL_FRAMEBUFFER, mrtFBO); // Reset framebuffer
-//        }
-//        expcor = 0;
-//    }
-
-    glDisable(GL_BLEND);
-
-//    if (mrt->isEnabled())
-//    {
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-//        glViewport(0, 0, width(), height());
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        mrt->RenderSmallQuad(showTexProgram.programId());
-//    }
-
-//    stringstream ss;
-//    ss << std::fixed << std::setprecision(2) << fpsValue;
-//    string fpsText = "FPS: " + ss.str();
-//    fontRenderer->RenderText(fpsText.c_str(), 5, 10);
+    if(renderState == 1) {
+        renderBuffer(4, 0, getVerticesNum(4));
+    } else if(renderState == 2) {
+        renderBuffer(5, 1, getVerticesNum(5));
+    }
 }
 
 void GpuRender::resizeGL(int w, int h)
@@ -484,161 +481,31 @@ bool GpuRender::event(QEvent *e)
         }
         return true;
     }
-
     return QOpenGLWidget::event(e);
 }
 
-void GpuRender::mousePressEvent(QMouseEvent *e)
-{
-    mousePressPos = QVector2D(e->localPos());
-}
-
-void GpuRender::mouseReleaseEvent(QMouseEvent *e)
-{
-    QVector2D diff = QVector2D(e->localPos()) - mousePressPos;
-//            camera3D->viewRotate(QVector2D(diff));
-    diff *= 0.1;
-    rx += glm::radians(diff.x());
-    ry += glm::radians(diff.y());
-    ry = glm::clamp(ry, CAM_LIMIT_RY_MIN, CAM_LIMIT_RY_MAX);
-}
-
-void GpuRender::wheelEvent(QWheelEvent *event)
-{
-    float bias = event->angleDelta().y();
-    bias *= 0.01;
-    pz += bias;
-    pz = glm::clamp(pz, CAM_LIMIT_ZOOM_MIN, CAM_LIMIT_ZOOM_MAX);
-}
-
-//int GpuRender::setParam(XMLParameters *xml_param)
+//void CalibGpuRender::mousePressEvent(QMouseEvent *e)
 //{
-//    camera_num = xml_param->camera_num;
-//    if(camera_num > CAMERA_NUM) camera_num = CAMERA_NUM;
-
-//    for (int i = 0; i < camera_num; i++)
-//    {
-//        g_in_width.push_back(xml_param->cameras[i].width);
-//        g_in_height.push_back(xml_param->cameras[i].height);
-//    }
-
-//    gProjection = glm::perspective(45.0f, (float)width() / (float)height(), 0.1f, 100.0f);
-//    car_scale = glm::vec3(xml_param->model_scale[0], xml_param->model_scale[0], xml_param->model_scale[0]);
-//    mrt = new MRT(width(), height());
-
-//    return(0);
+//    mousePressPos = QVector2D(e->localPos());
 //}
 
-int GpuRender::programsInit()
-{
-    renderProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.vsh");
-    renderProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/overlap.fsh");
-    renderProgram.link();
+//void CalibGpuRender::mouseReleaseEvent(QMouseEvent *e)
+//{
+//    QVector2D diff = QVector2D(e->localPos()) - mousePressPos;
+////            camera3D->viewRotate(QVector2D(diff));
+//    diff *= 0.1;
+//    rx += glm::radians(diff.x());
+//    ry += glm::radians(diff.y());
+//    ry = glm::clamp(ry, CAM_LIMIT_RY_MIN, CAM_LIMIT_RY_MAX);
+//}
 
-//    exposureCorrectionProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, s_v_shader);
-//    exposureCorrectionProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, s_f_shader);
-//    exposureCorrectionProgram.link();
-
-    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.vsh");
-    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/nonoverlap.fsh");
-    renderProgramWB.link();
-
-//    carModelProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, s_v_shader_model);
-//    carModelProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, s_f_shader_model);
-//    carModelProgram.link();
-
-//    mvpUniform = carModelProgram.uniformLocation("mvp");
-//    mvUniform = carModelProgram.uniformLocation("mv");
-//    mnUniform = carModelProgram.uniformLocation("mn");
-
-//    showTexProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, s_v_shader_tex);
-//    showTexProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, s_f_shader_tex);
-//    showTexProgram.link();
-
-    return (0);
-}
-
-bool GpuRender::RenderInit()
-{
-    if(camerasInit() == -1) return(false);	// Camera capturing
-
-    camTexInit();	// Camera textures initialization
-//    ecTexInit();	// Exposure correction
-
-    glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // Enable blending
-    glEnable(GL_CULL_FACE);  // Cull back face
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Set framebuffer
-
-    // We have to initialize all utils here, because they need OpenGL context
-//    if (!modelLoader.Initialize()) cout << "Car model was not initialized" << endl;
-//    mrt->Initialize();
-//    fontRenderer->Initialize();
-//    fontRenderer->SetShader(fontProgram.getHandle());
-//    return (GL_NO_ERROR == glGetError());
-    return true;
-}
-
-int GpuRender::camerasInit()
-{
-//    for (int i = 0; i < CAMERA_NUM; i++)
-//    {
-//        string dev_name = "/dev/video" + to_string(i);
-
-//        v4l2Camera v4l2_camera(g_in_width[i], g_in_height[i], CAM_PIXEL_TYPE, V4L2_MEMORY_MMAP, dev_name.c_str());
-//        v4l2_cameras.push_back(v4l2_camera);
-//        if (v4l2_cameras[i].captureSetup() == -1)
-//        {
-//            cout << "v4l_capture_setup failed camera " << i << endl;
-//            return(-1);
-//        }
-//    }
-
-//    for (int i = 0; i < CAMERA_NUM; i++) // Start capturing
-//        if (v4l2_cameras[i].startCapturing() == -1) return(-1);
-
-//    for (int i = 0; i < CAMERA_NUM; i++) // Get frames from cameras
-//        if (v4l2_cameras[i].getFrame() == -1) return(-1);
-
-    return(0);
-}
-
-void GpuRender::camTexInit()
-{
-    ///////////////////////////////// Load vertices arrays ///////////////////////////////
-    GLfloat* vVertices[VAO_NUM];
-    for (int j = 0; j < VAO_NUM; j++)
-    {
-        int vrt;
-        string array = "./array" + to_string((int)(j / 2) + 1) + to_string(j % 2 + 1);
-        vLoad(&vVertices[j], &vrt, array);
-        vertices.push_back(vrt);
-    }
-
-    //////////////////////// Camera textures initialization /////////////////////////////
-
-    GLuint VBO[VAO_NUM];
-    glGenVertexArrays(VAO_NUM, VAO);
-    glGenBuffers(VAO_NUM, VBO);
-
-    for (int j = 0; j < VAO_NUM; j++)
-    {
-        bufferObjectInit(&VAO[j], &VBO[j], vVertices[j], vertices[j]);
-        texture2dInit(&gTexObj[j]);
-    }
-
-    for (int j = 0; j < CAMERA_NUM; j++)
-    {
-        // j camera mask init
-        texture2dInit(&txtMask[j]);
-        string mask_name = "./mask" + to_string(j) + ".jpg";
-        Mat camera_mask = imread(mask_name, CV_LOAD_IMAGE_GRAYSCALE);
-        mask.push_back(camera_mask);
-
-        glBindTexture(GL_TEXTURE_2D, txtMask[j]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, mask[j].cols, mask[j].rows, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, (uchar*)mask[j].data);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-}
+//void CalibGpuRender::wheelEvent(QWheelEvent *event)
+//{
+//    float bias = event->angleDelta().y();
+//    bias *= 0.01;
+//    pz += bias;
+//    pz = glm::clamp(pz, CAM_LIMIT_ZOOM_MIN, CAM_LIMIT_ZOOM_MAX);
+//}
 
 void GpuRender::vLoad(GLfloat **vert, int *num, string filename)
 {
@@ -661,6 +528,8 @@ void GpuRender::vLoad(GLfloat **vert, int *num, string filename)
 
 void GpuRender::bufferObjectInit(GLuint *text_vao, GLuint *text_vbo, GLfloat *vert, int num)
 {
+    makeCurrent();
+
     // rectangle
     glBindBuffer(GL_ARRAY_BUFFER, *text_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * num, &vert[0], GL_STATIC_DRAW);
@@ -673,10 +542,14 @@ void GpuRender::bufferObjectInit(GLuint *text_vao, GLuint *text_vbo, GLfloat *ve
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
+
+    doneCurrent();
 }
 
 void GpuRender::texture2dInit(GLuint *texture)
 {
+    makeCurrent();
+
     glGenTextures(1, texture);
     glBindTexture(GL_TEXTURE_2D, *texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -684,15 +557,6 @@ void GpuRender::texture2dInit(GLuint *texture)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
-}
 
-void GpuRender::ecTexInit()
-{
-
-}
-
-inline void GpuRender::mapFrame(int buf_index, int camera)
-{
-//    (*pFNglTexDirectVIVMap)(GL_TEXTURE_2D, g_in_width[camera], g_in_height[camera], GL_PIXEL_TYPE, (GLvoid **)& v4l2_cameras[camera].buffers[buf_index].start, (const GLuint *)(&v4l2_cameras[camera].buffers[buf_index].offset));
-//    (*pFNglTexDirectInvalidateVIV)(GL_TEXTURE_2D);
+    doneCurrent();
 }

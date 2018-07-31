@@ -84,7 +84,7 @@ void Settings::save(const std::string &path)
        << "}";
 
     if(camparams.empty()) {
-        for(uint i = 0; i < cameraNum; i++) {
+        for(int i = 0; i < cameraNum; i++) {
             std::shared_ptr<CamParam> pcam(new CamParam);
             camparams.push_back(pcam);
         }

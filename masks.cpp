@@ -1,6 +1,6 @@
 /*
 *
-* Copyright © 2017 NXP
+* Copyright ï¿½ 2017 NXP
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -60,7 +60,7 @@
  *					-	Smooth mask edges.
  *
  **************************************************************************************************************/
-void Masks::createMasks(vector<Camera*> &cameras, vector< vector<Point3f> > &seam_points, float smothing)
+void Masks::createMasks(vector<CameraCalibrator*> &cameras, vector< vector<Point3f> > &seam_points, float smothing)
 {
 	for(uint i = 0; i < cameras.size(); i++)
 		if(seam_points[i].size() < 8)
@@ -299,7 +299,7 @@ int Masks::splitGrids()
  * 					only for flat base. The seam at the bowl side is smoothed with constant width of smoothing.
  *
  **************************************************************************************************************/
-void Masks::smoothMaskEdge(Mat &img, Vec2b colors, Vec2d angles, double angle_step, vector<Point3f> edge_points, Camera* camera)
+void Masks::smoothMaskEdge(Mat &img, Vec2b colors, Vec2d angles, double angle_step, vector<Point3f> edge_points, CameraCalibrator* camera)
 {
 	double color = colors[0];
 	double color_step = (double)(colors[1] - colors[0]) * angle_step / (angles[1] - angles[0]);

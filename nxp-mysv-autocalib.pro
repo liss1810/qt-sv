@@ -13,7 +13,7 @@ TEMPLATE = app
 
 QT_CONFIG -= no-pkg-config
 CONFIG += link_pkgconfig
-PKGCONFIG += opencv glm
+PKGCONFIG += opencv glm assimp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -30,27 +30,29 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    camera.cpp \
-    v4l2capture.cpp \
     src_contours.cpp \
     defisheye.cpp \
     grid.cpp \
     masks.cpp \
     settings.cpp \
-    gpurender.cpp
+    src_v4l2.cpp \
+    cameracalibrator.cpp \
+    gpurender.cpp \
+    exposure_compensator.cpp
 
 HEADERS += \
         mainwindow.h \
-    camera.h \
-    v4l2capture.h \
     src_contours.hpp \
     defisheye.hpp \
     grid.hpp \
     masks.hpp \
     lines.hpp \
     settings.h \
+    shaders.hpp \
+    src_v4l2.hpp \
+    cameracalibrator.h \
     gpurender.h \
-    shaders.hpp
+    exposure_compensator.hpp
 
 FORMS += \
         mainwindow.ui
@@ -59,3 +61,6 @@ RESOURCES += \
     resources.qrc
 
 DISTFILES +=
+
+target.path = /home/root/nxp-mysv-autocalib
+INSTALLS += target

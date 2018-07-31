@@ -66,7 +66,7 @@ CurvilinearGrid::CurvilinearGrid(uint angles, uint start_angle, uint nop_z, doub
  * @remarks 		The function defines 3D grid, generates triangles from it and saves the triangles into file.
  *
  **************************************************************************************************************/
-void CurvilinearGrid::createGrid(Camera *camera, double radius)
+void CurvilinearGrid::createGrid(CameraCalibrator *camera, double radius)
 {
 	cam_info.height = camera->xmap.rows;
 	cam_info.width = camera->xmap.cols;
@@ -195,7 +195,7 @@ int CurvilinearGrid::getGrid(float** points)
  * 					all point which are defined on 3d grid but aren't defined on camera frame with border values.
  *
  **************************************************************************************************************/
-void CurvilinearGrid::reorgGrid(double radius, Camera* camera)
+void CurvilinearGrid::reorgGrid(double radius, CameraCalibrator* camera)
 {
 	double step = radius / 4;
 
@@ -269,7 +269,7 @@ void CurvilinearGrid::reorgGrid(double radius, Camera* camera)
  *					- 8th point is located on flat circle base (z = 0). It is the rightmost point with minimum value of y coordinate.
  *
  **************************************************************************************************************/
-void CurvilinearGrid::findSeam(Camera* camera, vector<Point3f> &seam_points)
+void CurvilinearGrid::findSeam(CameraCalibrator* camera, vector<Point3f> &seam_points)
 {
 	bool isfound = false;
 	int middle_angle = (parameters.angles - 2 * parameters.start_angle) / 2; // index of the middle angle
@@ -450,7 +450,7 @@ void CurvilinearGrid::findSeam(Camera* camera, vector<Point3f> &seam_points)
  * 						index = 3 - 270 degree clockwise rotation;
  *
  **************************************************************************************************************/
-void CurvilinearGrid::saveGrid(Camera* camera)
+void CurvilinearGrid::saveGrid(CameraCalibrator* camera)
 {
 	float height = camera->xmap.rows;	// 2D grid height (texels)
 	float width = camera->xmap.cols;	// 2D grid width (texels)
@@ -581,7 +581,7 @@ RectilinearGrid::RectilinearGrid(uint angles, uint start_angle, uint nop_z, doub
  * @remarks 		The function defines 3D grid, generates triangles from it and saves the triangles into file.
  *
  **************************************************************************************************************/
-void RectilinearGrid::createGrid(Camera *camera, double radius)
+void RectilinearGrid::createGrid(CameraCalibrator *camera, double radius)
 {
 	cam_info.height = camera->xmap.rows;
 	cam_info.width = camera->xmap.cols;
@@ -738,7 +738,7 @@ int RectilinearGrid::getGrid(float** points)
  *					- 8th point is located on flat circle base (z = 0). It is the rightmost point with minimum value of y coordinate.
  *
  **************************************************************************************************************/
-void RectilinearGrid::findSeam(Camera* camera, vector<Point3f> &seam_points)
+void RectilinearGrid::findSeam(CameraCalibrator* camera, vector<Point3f> &seam_points)
 {
 	Point3f p;
 	int width = camera->xmap.cols; // Grid width
@@ -922,7 +922,7 @@ void RectilinearGrid::findSeam(Camera* camera, vector<Point3f> &seam_points)
  * 						index = 3 - 270 degree clockwise rotation;
  *
  **************************************************************************************************************/
-void RectilinearGrid::saveGrid(Camera* camera)
+void RectilinearGrid::saveGrid(CameraCalibrator* camera)
 {
 	float height = camera->xmap.rows;	// 2D grid height (texels)
 	float width = camera->xmap.cols;	// 2D grid width (texels)

@@ -9,5 +9,8 @@
         <file>overlap.fsh</file>
         <file>nonoverlap.fsh</file>
         <file>vshader.vsh</file>
+        <file>fshader.fsh</file>
+        <file>line.vsh</file>
+        <file>line.fsh</file>
     </qresource>
 </RCC>

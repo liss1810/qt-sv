@@ -2,16 +2,20 @@
 #include "ui_mainwindow.h"
 
 #include "gpurender.h"
+#include "exposure_compensator.hpp"
 
 #include <QFile>
 #include <QTimer>
 #include <QWizard>
 #include <QMessageBox>
+#include <QLayout>
+#include <QSpacerItem>
+#include <QDesktopWidget>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    dataPath(QApplication::applicationDirPath().toStdString() + "/../Content/")
+    dataPath(QApplication::applicationDirPath().toStdString() + "/Content/")
 {
     ui->setupUi(this);
 
@@ -21,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent) :
     for(uint i = 0; i < settings->camparams.size(); i++) {
         std::string calibResTxt = cameraModelPath + "calib_results_"
                 + std::to_string(i + 1) + ".txt";
-        Camera *pcam = new Camera(calibResTxt, i, settings->camparams[i]->sf,
+        CameraCalibrator *pcam = new CameraCalibrator(calibResTxt, i, settings->camparams[i]->sf,
                                   settings->camparams[i]->roi,
                                   settings->camparams[i]->contourMinSize);
         if (pcam->setIntrinsic(cameraModelPath + "chessboard_" + std::to_string(i + 1) + "/",
@@ -39,41 +43,33 @@ MainWindow::MainWindow(QWidget *parent) :
             exit(-1);
         }
 
-        cameras.push_back(pcam);
+        camCalibs.push_back(pcam);
     }
-    Camera::normTemplate(cameras);
+    CameraCalibrator::normTemplate(camCalibs);
 
-//    //extrinsic
-//    for(uint i = 0; i < cameras.size(); i++) {
-//        cv::Mat dist = cv::imread(dataPath + "ex" + std::to_string(i + 1) + ".jpg");
-//        cameras[i]->setExtrinsic(dist);
-//    }
+    for(uint i = 0; i < camCalibs.size(); i++) {
+        camera_view cam_view;
+        cam_view.camera_index = ui->glRender->addCamera(i, camCalibs.at(i)->model.model.img_size.width,
+                                                       camCalibs.at(i)->model.model.img_size.height);
+//        cam_view.mesh_index.push_back(calibRender->addMesh(dataPath +
+//                                                           "/meshes/original/mesh" +
+//                                                           to_string(i + 1)));
+        cam_views.push_back(cam_view);
+    }
 
-//    int nopZ = settings->nopZ;
-//    for(Camera *pcam : cameras) {
-//        int tmp = pcam->getBowlHeight(
-//                    settings->radiusScale * pcam->getBaseRadius(),
-//                    settings->stepX);
-//        nopZ = std::min(nopZ, tmp);
-//    }
+    for(uint i = 0; i < camCalibs.size(); i++) {
+        if(ui->glRender->runCamera(i)) {
+            std::cout << "camera " << i <<
+                         " start failed" << std::endl;
+        }
+    }
 
-//    for(uint i = 0; i < cameras.size(); i++) {
-//        CurvilinearGrid *pgrid =
-//                new CurvilinearGrid(settings->angles, settings->startAngle,
-//                                    nopZ, settings->stepX);
-//        pgrid->createGrid(cameras[i],
-//                          settings->radiusScale * cameras[i]->getBaseRadius());
-//        grids.push_back(pgrid);
-//    }
+    ui->statusBar->showMessage("fisheye view");
 
-//    saveGrids();
+    timer = new QTimer(this);
 
-//    render = new GpuRender;
-//    setCentralWidget(render);
-
-//    timer = new QTimer(this);
-//    connect(timer, SIGNAL(timeout()), render, SLOT(update()));
-//    timer->start(30);
+    connect(timer, &QTimer::timeout, this, &MainWindow::updateRender);
+    timer->start(50);
 }
 
 MainWindow::~MainWindow()
@@ -83,13 +79,108 @@ MainWindow::~MainWindow()
 
     delete ui;
     delete settings;
-    for(Camera *pcam : cameras) {
+    for(CameraCalibrator *pcam : camCalibs) {
         delete pcam;
     }
 
     for(CurvilinearGrid *pgrid : grids) {
         delete pgrid;
     }
+}
+
+int MainWindow::getContours(float **gl_lines)
+{
+    float** contours = (float**)calloc(camCalibs.size(), sizeof(float*)); // Contour arrays for each camera
+    int array_num[camCalibs.size()] = {0}; // Number of array elements for each camera
+    int sum_num = 0;
+    int index = 0;
+
+    for (uint i = 0; i < camCalibs.size(); i++)
+    {
+        if(searchContours(i) == 0)
+        {
+            array_num[i] = camCalibs[i]->getContours(&contours[i]);
+            sum_num += array_num[i];
+        }
+    }
+    *gl_lines = new float[sum_num];
+    for (uint i = 0; i < camCalibs.size(); i++)
+    {
+        for (int j = 0; j < array_num[i]; j++)
+        {
+            (*gl_lines)[index] = contours[i][j];
+            index++;
+        }
+    }
+    for (int i = camCalibs.size() - 1; i >= 0; i--)
+        if (contours[i]) free(contours[i]);
+    if (contours) free(contours);
+
+    return sum_num;
+}
+
+int MainWindow::getGrids(float **gl_grid)
+{
+    if(camCalibs.size() == 0) return 0;
+    float** grids_data = (float**)calloc(camCalibs.size(), sizeof(float*)); // Contour arrays for each camera
+    if (!grids_data)
+    {
+        cout << "Cannot allocate memory" << endl;
+        return(0);
+    }
+    int array_num[camCalibs.size()] = {0}; // Number of array elements for each camera
+    int sum_num = 0;
+    int index = 0;
+
+    int nopZ = settings->nopZ;
+    for(CameraCalibrator *pcam : camCalibs) {
+        int tmp = pcam->getBowlHeight(
+                    settings->radiusScale * pcam->getBaseRadius(),
+                    settings->stepX);
+        nopZ = std::min(nopZ, tmp);
+    }
+
+    vector< vector<Point3f> > seam;
+    for(uint i = 0; i < camCalibs.size(); i++) {
+        CurvilinearGrid *pgrid =
+                new CurvilinearGrid(settings->angles, settings->startAngle,
+                                    nopZ, settings->stepX);
+        pgrid->createGrid(camCalibs[i],
+                          settings->radiusScale * camCalibs[i]->getBaseRadius());
+        grids.push_back(pgrid);
+        array_num[i] = pgrid->getGrid(&grids_data[i]);
+        sum_num += array_num[i];
+    }
+
+    *gl_grid = new float[sum_num];
+    for (uint i = 0; i < camCalibs.size(); i++)
+    {
+        for (int j = 0; j < array_num[i]; j++)
+        {
+            (*gl_grid)[index] = grids_data[i][j];
+            index++;
+        }
+    }
+
+    for (int i = camCalibs.size() - 1; i >= 0; i--)
+        if (grids_data[i]) free(grids_data[i]);
+    if (grids_data) free(grids_data);
+
+    return sum_num;
+}
+
+int MainWindow::searchContours(int index)
+{
+    Mat img = ui->glRender->takeFrame(cam_views[index].camera_index);
+    if (camCalibs[index]->setExtrinsic(img) != 0)
+        return (-1);
+
+    return 0;
+}
+
+void MainWindow::updateRender()
+{
+    ui->glRender->update();
 }
 
 void MainWindow::saveGrids()
@@ -99,16 +190,92 @@ void MainWindow::saveGrids()
 
     for (uint i = 0; i < grids.size(); i++)
     {
-        grids[i]->saveGrid(cameras[i]);
+        grids[i]->saveGrid(camCalibs[i]);
         grids[i]->getSeamPoints(seam_points);	// Get grid seams
         seams.push_back(seam_points);
     }
 
     Masks masks;
-    masks.createMasks(cameras, seams, settings->smoothAngle); // Calculate masks for blending
+    masks.createMasks(camCalibs, seams, settings->smoothAngle); // Calculate masks for blending
     masks.splitGrids();
 
-//    Compensator compensator(Size(param.disp_width, param.disp_height)); // Exposure correction
-//    compensator.feed(cameras, seams);
-//    compensator.save((char*)"./compensator");
+    QRect rec = QApplication::desktop()->screenGeometry();
+
+    Compensator compensator(Size(rec.width(), rec.height())); // Exposure correction
+    compensator.feed(camCalibs, seams);
+    compensator.save((char*)"./compensator");
+}
+
+void MainWindow::switchState(viewStates new_state)
+{
+    float* data;
+    int data_num;
+
+    switch (new_state) {
+    case fisheye_view:
+        ui->statusBar->showMessage("fisheye view");
+        for(uint i = 0; i < ui->glRender->mesh_index.size(); i++) {
+            std::string fileName = dataPath + "meshes/original/mesh" +
+                    std::to_string(i + 1);
+            ui->glRender->reloadMesh(ui->glRender->mesh_index.at(i), fileName);
+        }
+        ui->glRender->setRenderBuff(0);
+        break;
+    case defisheye_view:
+        ui->statusBar->showMessage("defisheye view");
+        for(uint i = 0; i < ui->glRender->mesh_index.size(); i++) {
+            ui->glRender->changeMesh(camCalibs[i]->xmap, camCalibs[i]->ymap,
+                                    10, Point2f(((i & 1) - 1.0), ((~i >> 1) & 1)),
+                                    i);
+        }
+        ui->glRender->setRenderBuff(0);
+        break;
+    case contours_view:
+        ui->statusBar->showMessage("contours view");
+        data_num = getContours(&data);
+
+        if(contours_buf == 0) {
+            contours_buf = ui->glRender->addBuffer(&data[0], data_num / 3);
+        } else {
+            ui->glRender->updateBuffer(contours_buf, &data[0], data_num / 3);
+        }
+        ui->glRender->setBufferAsAttr(contours_buf, 1, (char*)"vPosition");
+        if (data) free(data);
+        ui->glRender->setRenderBuff(1);
+        break;
+    case grids_view:
+        ui->statusBar->showMessage("grids view");
+        data_num = getGrids(&data);
+        if(grid_buf == 0) {
+            grid_buf = ui->glRender->addBuffer(&data[0], data_num / 3);
+        } else {
+            ui->glRender->updateBuffer(grid_buf, &data[0], data_num / 3);
+        }
+        ui->glRender->setBufferAsAttr(grid_buf, 1, (char*)"vPosition");
+        if (data) free(data);
+        ui->glRender->setRenderBuff(2);
+        break;
+    case result_view:
+        ui->statusBar->showMessage("result view");
+        saveGrids();
+        break;
+    default:
+        break;
+    }
+}
+
+void MainWindow::on_backButton_clicked()
+{
+    if(state > fisheye_view) {
+        state = (viewStates)(state - 1);
+        switchState(state);
+    }
+}
+
+void MainWindow::on_nextButton_clicked()
+{
+    if(state < result_view) {
+        state = (viewStates)(state + 1);
+        switchState(state);
+    }
 }

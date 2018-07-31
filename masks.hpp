@@ -34,7 +34,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "camera.h"
+#include "cameracalibrator.h"
 #include "lines.hpp"
 
 using namespace cv;
@@ -112,7 +112,7 @@ class Masks {
 		 *					-	Smooth mask edges.
 		 *
 		 **************************************************************************************************************/
-		void createMasks(vector<Camera*> &cameras, vector< vector<Point3f> > &seam_points, float smothing);
+        void createMasks(vector<CameraCalibrator*> &cameras, vector< vector<Point3f> > &seam_points, float smothing);
 
 		/**************************************************************************************************************
 		 *
@@ -164,7 +164,7 @@ class Masks {
 		 * 					only for flat base. The seam at the bowl side is smoothed with constant width of smoothing.
 		 *
 		 **************************************************************************************************************/
-		void smoothMaskEdge(Mat &img, Vec2b colors, Vec2d angles, double angle_step, vector<Point3f> edge_points, Camera* camera);
+        void smoothMaskEdge(Mat &img, Vec2b colors, Vec2d angles, double angle_step, vector<Point3f> edge_points, CameraCalibrator* camera);
 
 		/**************************************************************************************************************
 		 *

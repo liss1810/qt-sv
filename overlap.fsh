@@ -1,11 +1,11 @@
-#version 330 core
-//#version 300 es
-//#ifdef GL_FRAGMENT_PRECISION_HIGH
-//  precision highp float;
-//#else
-//  precision mediump float;
-//#endif
 
+#version 300 es
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+  precision highp float;
+#else
+  precision mediump float;
+#endif
+//#version 330 core
 in vec2 TexCoord;
 out vec4 fragColor;
 uniform sampler2D myTexture;

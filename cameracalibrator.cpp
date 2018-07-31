@@ -1,4 +1,4 @@
-#include "camera.h"
+#include "cameracalibrator.h"
 
 #include <QFile>
 #include <QTextStream>
@@ -6,14 +6,14 @@
 #include "src_contours.hpp"
 #include <sys/stat.h>
 
-cv::Size Camera::Template::posterSize(0, 0);
+cv::Size CameraCalibrator::Template::posterSize(0, 0);
 
-Camera::Camera()
+CameraCalibrator::CameraCalibrator()
 {
 
 }
 
-Camera::Camera(const string &calibFilePath, int index_, float sf_,
+CameraCalibrator::CameraCalibrator(const string &calibFilePath, int index_, float sf_,
                float roi_, int cntrMinSize_) :
     index(index_),
     sf(sf_),
@@ -27,7 +27,7 @@ Camera::Camera(const string &calibFilePath, int index_, float sf_,
     model.createLUT(xmap, ymap, sf);
 }
 
-int Camera::setIntrinsic(const string &path, const string &name, int img_num, cv::Size patternSize)
+int CameraCalibrator::setIntrinsic(const string &path, const string &name, int img_num, cv::Size patternSize)
 {
     /***************************************** 1.Load chessboard image ****************************************/
     std::vector<std::vector<cv::Point3f> > object_points;
@@ -86,7 +86,7 @@ int Camera::setIntrinsic(const string &path, const string &name, int img_num, cv
     return(0);
 }
 
-int Camera::setTemplate(const string &tempPath)
+int CameraCalibrator::setTemplate(const string &tempPath)
 {
     QString qpath = QString::fromStdString(tempPath);
 
@@ -108,7 +108,7 @@ int Camera::setTemplate(const string &tempPath)
     return 0;
 }
 
-void Camera::normTemplate(std::vector<Camera *> &cameras)
+void CameraCalibrator::normTemplate(std::vector<CameraCalibrator *> &cameras)
 {
     float postWidth = cameras.at(0)->temp.maxX;
     float postHeight = postWidth;
@@ -124,7 +124,7 @@ void Camera::normTemplate(std::vector<Camera *> &cameras)
         }
     }
 
-    for(Camera *cam : cameras) {
+    for(CameraCalibrator *cam : cameras) {
         int ny = (cam->temp.maxX == postWidth) ? postHeight : postWidth;
 
         for(cv::Point3f &refp : cam->temp.ref_points) {
@@ -134,7 +134,36 @@ void Camera::normTemplate(std::vector<Camera *> &cameras)
     }
 }
 
-int Camera::setExtrinsic(const Mat &img)
+int CameraCalibrator::getContours(float** lines)
+{
+    Point2f top = Point2f(((index & 1) - 1.0), ((~index >> 1) & 1));
+
+    float x_norm = 1.0 / xmap.cols;
+    float y_norm = 1.0 / xmap.rows;
+
+    (*lines) = (float*)malloc(3 * 2 * img_p.size() * sizeof(float));
+    if ((*lines) == NULL) {
+        cout << "Memory allocation did not complete successfully" << endl;
+        return(0);
+    }
+
+    for (uint i = 0; i < img_p.size(); i++)
+    {
+        int next_i = 4 * (int)(i / 4) + ((i + 1) % 4);
+
+        (*lines)[6 * i] = img_p[i].x * x_norm + top.x;
+        (*lines)[6 * i + 1] = top.y - img_p[i].y * y_norm;
+        (*lines)[6 * i + 2] = 0;
+
+        (*lines)[6 * i + 3] = img_p[next_i].x * x_norm + top.x;
+        (*lines)[6 * i + 4] = top.y - img_p[next_i].y * y_norm;
+        (*lines)[6 * i + 5] = 0;
+    }
+
+    return (6 * img_p.size());
+}
+
+int CameraCalibrator::setExtrinsic(const Mat &img)
 {
     using namespace std;
     using namespace cv;
@@ -180,13 +209,13 @@ int Camera::setExtrinsic(const Mat &img)
     return(0);
 }
 
-void Camera::updateLUT(float sf_)
+void CameraCalibrator::updateLUT(float sf_)
 {
     sf = sf_;
     model.createLUT(xmap, ymap, sf);
 }
 
-int Camera::getBowlHeight(double radius, double step_x)
+int CameraCalibrator::getBowlHeight(double radius, double step_x)
 {
     if (param.rvec.empty() || param.tvec.empty() || param.K.empty())
         return (0);
@@ -221,7 +250,7 @@ int Camera::getBowlHeight(double radius, double step_x)
     return(MAX(0, (num - 2)));
 }
 
-int Camera::getImagePoints(cv::Mat &undist_img, uint num,
+int CameraCalibrator::getImagePoints(cv::Mat &undist_img, uint num,
                    std::vector<cv::Point2f> &img_points)
 {
     using namespace std;
