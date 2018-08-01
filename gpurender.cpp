@@ -453,46 +453,46 @@ void GpuRender::resizeGL(int w, int h)
 //    camera3D->setAspectRatio(aspect);
 }
 
-bool GpuRender::event(QEvent *e)
-{
-    if(e->type() == QEvent::TouchBegin) {
-        return true;
-    }
-    if(e->type() == QEvent::TouchEnd) {
-        return true;
-    }
-    if(e->type() == QEvent::TouchUpdate) {
-//        qInfo() << "touch update";
-        QTouchEvent *touchEvent = static_cast<QTouchEvent*>(e);
-        auto points = touchEvent->touchPoints();
-        auto sizePoints = points.size();
+//bool GpuRender::event(QEvent *e)
+//{
+//    if(e->type() == QEvent::TouchBegin) {
+//        return true;
+//    }
+//    if(e->type() == QEvent::TouchEnd) {
+//        return true;
+//    }
+//    if(e->type() == QEvent::TouchUpdate) {
+////        qInfo() << "touch update";
+//        QTouchEvent *touchEvent = static_cast<QTouchEvent*>(e);
+//        auto points = touchEvent->touchPoints();
+//        auto sizePoints = points.size();
 
-        if(sizePoints == 1) {
-            QVector2D diff = QVector2D(points[0].pos() - points[0].lastPos());
-//            camera3D->viewRotate(QVector2D(diff));
-            diff *= 0.1;
-            rx += glm::radians(diff.x());
-            ry += glm::radians(diff.y());
-            ry = glm::clamp(ry, CAM_LIMIT_RY_MIN, CAM_LIMIT_RY_MAX);
-            return true;
-        }
+//        if(sizePoints == 1) {
+//            QVector2D diff = QVector2D(points[0].pos() - points[0].lastPos());
+////            camera3D->viewRotate(QVector2D(diff));
+//            diff *= 0.1;
+//            rx += glm::radians(diff.x());
+//            ry += glm::radians(diff.y());
+//            ry = glm::clamp(ry, CAM_LIMIT_RY_MIN, CAM_LIMIT_RY_MAX);
+//            return true;
+//        }
 
-        if(points.size() == 2) {
-            QPointF p1(points[0].pos() - points[1].pos());
-            QPointF p2(points[0].lastPos() - points[1].lastPos());
-            float len1 = qSqrt(qPow(p1.x(), 2) + qPow(p1.y(), 2));
-            float len2 = qSqrt(qPow(p2.x(), 2) + qPow(p2.y(), 2));
-//            camera3D->setFovBias(len2 - len1);
-            float bias = len2 - len1;
-            bias *= 0.01;
-            pz -= bias;
-            pz = glm::clamp(pz, CAM_LIMIT_ZOOM_MIN, CAM_LIMIT_ZOOM_MAX);
-            return true;
-        }
-        return true;
-    }
-    return QOpenGLWidget::event(e);
-}
+//        if(points.size() == 2) {
+//            QPointF p1(points[0].pos() - points[1].pos());
+//            QPointF p2(points[0].lastPos() - points[1].lastPos());
+//            float len1 = qSqrt(qPow(p1.x(), 2) + qPow(p1.y(), 2));
+//            float len2 = qSqrt(qPow(p2.x(), 2) + qPow(p2.y(), 2));
+////            camera3D->setFovBias(len2 - len1);
+//            float bias = len2 - len1;
+//            bias *= 0.01;
+//            pz -= bias;
+//            pz = glm::clamp(pz, CAM_LIMIT_ZOOM_MIN, CAM_LIMIT_ZOOM_MAX);
+//            return true;
+//        }
+//        return true;
+//    }
+//    return QOpenGLWidget::event(e);
+//}
 
 //void CalibGpuRender::mousePressEvent(QMouseEvent *e)
 //{

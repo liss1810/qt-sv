@@ -65,6 +65,7 @@ public:
     };
 
     vector<int> mesh_index;
+    std::vector<v4l2Camera> v4l2_cameras;
 
     int setProgram(uint index);
 
@@ -89,7 +90,7 @@ protected:
     void initializeGL() Q_DECL_OVERRIDE;
     void paintGL() Q_DECL_OVERRIDE;
     void resizeGL(int w, int h) Q_DECL_OVERRIDE;
-    bool event(QEvent *e) Q_DECL_OVERRIDE;
+//    bool event(QEvent *e) Q_DECL_OVERRIDE;
 //    void mousePressEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
 //    void mouseReleaseEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
 //    void wheelEvent(QWheelEvent *event) Q_DECL_OVERRIDE;
@@ -100,7 +101,6 @@ private:
     int currentProgram;
     std::vector<QOpenGLShaderProgram *> renderPrograms;
     vector<vertices_obj> v_obj;
-    std::vector<v4l2Camera> v4l2_cameras;
 
     void vLoad(GLfloat** vert, int* num, string filename);
     void bufferObjectInit(GLuint* text_vao, GLuint* text_vbo, GLfloat* vert, int num);

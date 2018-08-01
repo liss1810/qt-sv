@@ -79,7 +79,7 @@ string ModelLoader::LoadFileName()
 	return line;
 }
 
-bool ModelLoader::Initialize()
+bool ModelLoader::Initialize(const string &path)
 {
 	bool result = true;
 
@@ -87,7 +87,7 @@ bool ModelLoader::Initialize()
 	if (filename.empty())
 		return false;
 	
-    string filepath = "./Content/models/" + filename;
+    string filepath = path + "./Content/models/" + filename;
 	
 	cout << "Loading model: " << filepath << endl;
 	Assimp::Importer importer;

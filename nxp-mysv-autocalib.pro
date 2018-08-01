@@ -70,8 +70,7 @@ FORMS += \
 RESOURCES += \
     resources.qrc
 
-DISTFILES += \
-    fshader.fsh
+DISTFILES +=
 
 target.path = /home/root/nxp-mysv-autocalib
 INSTALLS += target

@@ -3,6 +3,7 @@
 
 #include "gpurender.h"
 #include "exposure_compensator.hpp"
+#include "svgpurender.h"
 
 #include <QFile>
 #include <QTimer>
@@ -67,8 +68,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->statusBar->showMessage("fisheye view");
 
+    state = result_view;
     timer = new QTimer(this);
-
     connect(timer, &QTimer::timeout, this, &MainWindow::updateRender);
     timer->start(50);
 }
@@ -259,7 +260,14 @@ void MainWindow::switchState(viewStates new_state)
     case result_view:
         ui->statusBar->showMessage("result view");
         saveGrids();
-
+        timer->stop();
+//        SvGpuRender *svRender = new SvGpuRender(ui->glRender->v4l2_cameras, this);
+//        svRender->setAttribute(Qt::WA_DeleteOnClose);
+//        svRender->setPath(appPath);
+//        svRender->setParam(settings->cameraNum, camCalibs.at(0)->model.model.img_size.width,
+//                     camCalibs.at(0)->model.model.img_size.height,
+//                     settings->model_scale);
+//        svRender->showFullScreen();
         break;
     default:
         break;

@@ -6,11 +6,14 @@
         <file>ex4.jpg</file>
     </qresource>
     <qresource prefix="/shaders">
-        <file>overlap.fsh</file>
-        <file>nonoverlap.fsh</file>
+        <file>mvp.vsh</file>
+        <file>blend_ec.fsh</file>
         <file>vshader.vsh</file>
         <file>fshader.fsh</file>
         <file>line.vsh</file>
         <file>line.fsh</file>
+        <file>ec.fsh</file>
+        <file>model.fsh</file>
+        <file>model.vsh</file>
     </qresource>
 </RCC>
