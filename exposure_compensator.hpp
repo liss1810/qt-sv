@@ -1,6 +1,6 @@
 /*
 *
-* Copyright © 2017 NXP
+* Copyright Â© 2017 NXP
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -137,14 +137,14 @@ class Compensator {
 		 * @return 			-
 		 *
 		 * @remarks 		The function generates grids only for overlap regions which lays on flat bowl bottom for each
-		 * 					camera and saves the grids into “compensator” folder – 1 grid per camera. Each grid contained
+		 * 					camera and saves the grids into Â“compensatorÂ” folder Â– 1 grid per camera. Each grid contained
 		 * 					description of two overlap regions: left and right.
 		 *					Also the application save the file with texel coordinates of circumscribed rectangle for each
 		 *					overlap regions. The texture mapping application uses this information to copy only overlap
 		 *					regions from frame buffer when it calculates exposure correction coefficients.
 		 *
 		 **************************************************************************************************************/
-		int save(char* path);
+        int save(const char *path);
 		/**************************************************************************************************************
 		 *
 		 * @brief  			Load compensator info
@@ -158,7 +158,7 @@ class Compensator {
 		 * 					frame buffer when it calculates exposure correction coefficients.
 		 *
 		 **************************************************************************************************************/
-		int load(char* path);
+        int load(const char* path);
 
 	private:
 		CompensatorInfo cinf;

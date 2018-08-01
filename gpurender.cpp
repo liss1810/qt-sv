@@ -428,10 +428,20 @@ void GpuRender::paintGL()
         pthread_mutex_unlock(&v4l2_cameras[j].th_mutex);
     }
 
-    if(renderState == 1) {
-        renderBuffer(4, 0, getVerticesNum(4));
-    } else if(renderState == 2) {
-        renderBuffer(5, 1, getVerticesNum(5));
+    renderPrograms.at(1)->bind();
+    if(renderState == RenderLines) {
+        if(v_obj.size() < 5)
+            return;
+        glBindVertexArray(v_obj[4].vao);
+        glLineWidth(2.0);
+        glDrawArrays(GL_LINES, 0, v_obj[4].num);
+    } else if(renderState == RenderGrids) {
+        if(v_obj.size() < 6)
+            return;
+        glBindVertexArray(v_obj[5].vao);
+        glBeginTransformFeedback(GL_POINTS);
+        glDrawArrays(GL_POINTS, 0, v_obj[5].num);
+        glEndTransformFeedback();
     }
 }
 

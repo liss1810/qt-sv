@@ -53,13 +53,14 @@ private:
     vector<camera_view> cam_views;	// View indexes
     vector<CameraCalibrator *> camCalibs;
     vector<CurvilinearGrid*> grids;	// Grids
-    const std::string dataPath;
+    const std::string appPath;
+    const std::string contentPath;
     Settings *settings;
     viewStates state = fisheye_view;
     QTimer *timer;
 
-    int contours_buf = 0;
-    int grid_buf = 0;
+    int contoursVaoIndex = 0;
+    int gridsVaoIndex = 0;
 
     void saveGrids();
     void switchState(viewStates new_state);

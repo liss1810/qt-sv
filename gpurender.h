@@ -58,6 +58,12 @@ public:
    explicit GpuRender(QWidget *parent = 0);
     ~GpuRender();
 
+    enum RenderState {
+        RenderBase,
+        RenderLines,
+        RenderGrids,
+    };
+
     vector<int> mesh_index;
 
     int setProgram(uint index);
@@ -75,7 +81,7 @@ public:
     int setBufferAsAttr(int buf_num, int prog_num, char* atr_name);
     void renderBuffer(int buf_num, int type, int vert_num);
     void updateBuffer(int buf_num, GLfloat* buf, int num);
-    void setRenderBuff(int state_) {renderState = state_;}
+    void setRenderState(RenderState state_) {renderState = state_;}
 
 public slots:
 

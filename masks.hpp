@@ -1,6 +1,6 @@
 /*
 *
-* Copyright © 2017 NXP
+* Copyright Â© 2017 NXP
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -57,9 +57,9 @@ class Masks {
 		 *
 		 * @brief  		Get seam.
 		 *
-		 * @param  out 	Seam* left – left seam.
-		 * 				Seam* right – right seam.
-		 * 			in	uint i – number of seam element.
+		 * @param  out 	Seam* left Â– left seam.
+		 * 				Seam* right Â– right seam.
+		 * 			in	uint i Â– number of seam element.
 		 *
 		 * @return 		The function returns 1, if vector<Seam> seaml and
 		 *				vector<Seam> seamr sizes are larger than i. Otherwise 0 is returned.
@@ -112,7 +112,9 @@ class Masks {
 		 *					-	Smooth mask edges.
 		 *
 		 **************************************************************************************************************/
-        void createMasks(vector<CameraCalibrator*> &cameras, vector< vector<Point3f> > &seam_points, float smothing);
+        void createMasks(vector<CameraCalibrator*> &cameras,
+                         vector< vector<Point3f> > &seam_points,
+                         float smothing, const string &path);
 
 		/**************************************************************************************************************
 		 *
@@ -133,7 +135,7 @@ class Masks {
 		 * 					grid.
 		 *
 		 **************************************************************************************************************/
-		int splitGrids();
+        int splitGrids(const string &path);
 
 	private:		
 		vector<Mat> masks;	// Vector of masks

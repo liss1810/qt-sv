@@ -1,6 +1,6 @@
 /*
 *
-* Copyright © 2017 NXP
+* Copyright Â© 2017 NXP
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -132,14 +132,14 @@ void Compensator::feed(vector<CameraCalibrator*> &cameras, vector< vector<Point3
  * @return 			-
  *
  * @remarks 		The function generates grids only for overlap regions which lays on flat bowl bottom for each
- * 					camera and saves the grids into “compensator” folder – 1 grid per camera. Each grid contained
+ * 					camera and saves the grids into Â“compensatorÂ” folder Â– 1 grid per camera. Each grid contained
  * 					description of two overlap regions: left and right.
  *					Also the application save the file with texel coordinates of circumscribed rectangle for each
  *					overlap region. The texture mapping application uses this information to copy only overlap
  *					regions from frame buffer when it calculates exposure correction coefficients.
  *
  **************************************************************************************************************/
-int Compensator::save(char* path)
+int Compensator::save(const char* path)
 {
 	double x_gain = 2 * cinf.radius;
 	double y_gain = 2 * cinf.radius * cinf.mask.rows / cinf.mask.cols;
@@ -235,7 +235,7 @@ int Compensator::save(char* path)
  * 					frame buffer when it calculates exposure correction coefficients.
  *
  **************************************************************************************************************/
-int Compensator::load(char* path)
+int Compensator::load(const char *path)
 {
 	char file_name[50];
 	sprintf(file_name, "%s/compensator", path);

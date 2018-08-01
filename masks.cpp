@@ -60,7 +60,10 @@
  *					-	Smooth mask edges.
  *
  **************************************************************************************************************/
-void Masks::createMasks(vector<CameraCalibrator*> &cameras, vector< vector<Point3f> > &seam_points, float smothing)
+void Masks::createMasks(vector<CameraCalibrator*> &cameras,
+                        vector< vector<Point3f> > &seam_points,
+                        float smothing,
+                        const std::string &path)
 {
 	for(uint i = 0; i < cameras.size(); i++)
 		if(seam_points[i].size() < 8)
@@ -206,16 +209,16 @@ void Masks::createMasks(vector<CameraCalibrator*> &cameras, vector< vector<Point
  * 					grid.
  *
  **************************************************************************************************************/
-int Masks::splitGrids()
+int Masks::splitGrids(const string &path)
 {
 	float vx[3], vy[3], vz[3], tx[3], ty[3];
 
 	for(uint i = 0; i < masks.size(); i++)
 	{
 		char file_name[50], file_name_b[50], file_name_wb[50];
-		sprintf(file_name, "./array%d", i + 1);		// Name of input grid
-		sprintf(file_name_b, "./array%d1", i + 1); 	// Name of overlap grid
-		sprintf(file_name_wb, "./array%d2", i + 1); // Name of non-overlap grid
+        sprintf(file_name, (path + "./array%d").c_str(), i + 1);		// Name of input grid
+        sprintf(file_name_b, (path + "./array%d1").c_str(), i + 1); 	// Name of overlap grid
+        sprintf(file_name_wb, (path + "./array%d2").c_str(), i + 1); // Name of non-overlap grid
 
 		ifstream ifs_ref(file_name);
 		if(ifs_ref) // // The file exists, and is open for input

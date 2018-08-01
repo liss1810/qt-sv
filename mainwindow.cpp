@@ -15,13 +15,14 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    dataPath(QApplication::applicationDirPath().toStdString() + "/Content/")
+    appPath(QApplication::applicationDirPath().toStdString()),
+    contentPath(appPath + "/Content/")
 {
     ui->setupUi(this);
 
-    settings = new Settings(dataPath + "settings.xml");
+    settings = new Settings(contentPath + "settings.xml");
 
-    std::string cameraModelPath = dataPath + "camera_models/";
+    std::string cameraModelPath = contentPath + "camera_models/";
     for(uint i = 0; i < settings->camparams.size(); i++) {
         std::string calibResTxt = cameraModelPath + "calib_results_"
                 + std::to_string(i + 1) + ".txt";
@@ -36,7 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
                                   QMessageBox::Cancel);
             exit(-1);
         }
-        if (pcam->setTemplate(dataPath + "template/" +
+        if (pcam->setTemplate(contentPath + "template/" +
                               "template_" + std::to_string(i + 1) + ".txt")) {
             QMessageBox::critical(this, " ", "set template error",
                                   QMessageBox::Cancel);
@@ -196,14 +197,14 @@ void MainWindow::saveGrids()
     }
 
     Masks masks;
-    masks.createMasks(camCalibs, seams, settings->smoothAngle); // Calculate masks for blending
-    masks.splitGrids();
+    masks.createMasks(camCalibs, seams, settings->smoothAngle, appPath); // Calculate masks for blending
+    masks.splitGrids(appPath);
 
     QRect rec = QApplication::desktop()->screenGeometry();
 
     Compensator compensator(Size(rec.width(), rec.height())); // Exposure correction
     compensator.feed(camCalibs, seams);
-    compensator.save((char*)"./compensator");
+    compensator.save((appPath + "/compensator").c_str());
 }
 
 void MainWindow::switchState(viewStates new_state)
@@ -215,11 +216,11 @@ void MainWindow::switchState(viewStates new_state)
     case fisheye_view:
         ui->statusBar->showMessage("fisheye view");
         for(uint i = 0; i < ui->glRender->mesh_index.size(); i++) {
-            std::string fileName = dataPath + "meshes/original/mesh" +
+            std::string fileName = contentPath + "meshes/original/mesh" +
                     std::to_string(i + 1);
             ui->glRender->reloadMesh(ui->glRender->mesh_index.at(i), fileName);
         }
-        ui->glRender->setRenderBuff(0);
+        ui->glRender->setRenderState(GpuRender::RenderBase);
         break;
     case defisheye_view:
         ui->statusBar->showMessage("defisheye view");
@@ -228,36 +229,37 @@ void MainWindow::switchState(viewStates new_state)
                                     10, Point2f(((i & 1) - 1.0), ((~i >> 1) & 1)),
                                     i);
         }
-        ui->glRender->setRenderBuff(0);
+        ui->glRender->setRenderState(GpuRender::RenderBase);
         break;
     case contours_view:
         ui->statusBar->showMessage("contours view");
         data_num = getContours(&data);
 
-        if(contours_buf == 0) {
-            contours_buf = ui->glRender->addBuffer(&data[0], data_num / 3);
+        if(contoursVaoIndex == 0) {
+            contoursVaoIndex = ui->glRender->addBuffer(&data[0], data_num / 3);
         } else {
-            ui->glRender->updateBuffer(contours_buf, &data[0], data_num / 3);
+            ui->glRender->updateBuffer(contoursVaoIndex, &data[0], data_num / 3);
         }
-        ui->glRender->setBufferAsAttr(contours_buf, 1, (char*)"vPosition");
+        ui->glRender->setBufferAsAttr(contoursVaoIndex, 1, (char*)"vPosition");
         if (data) free(data);
-        ui->glRender->setRenderBuff(1);
+        ui->glRender->setRenderState(GpuRender::RenderLines);
         break;
     case grids_view:
         ui->statusBar->showMessage("grids view");
         data_num = getGrids(&data);
-        if(grid_buf == 0) {
-            grid_buf = ui->glRender->addBuffer(&data[0], data_num / 3);
+        if(gridsVaoIndex == 0) {
+            gridsVaoIndex = ui->glRender->addBuffer(&data[0], data_num / 3);
         } else {
-            ui->glRender->updateBuffer(grid_buf, &data[0], data_num / 3);
+            ui->glRender->updateBuffer(gridsVaoIndex, &data[0], data_num / 3);
         }
-        ui->glRender->setBufferAsAttr(grid_buf, 1, (char*)"vPosition");
+        ui->glRender->setBufferAsAttr(gridsVaoIndex, 1, (char*)"vPosition");
         if (data) free(data);
-        ui->glRender->setRenderBuff(2);
+        ui->glRender->setRenderState(GpuRender::RenderGrids);
         break;
     case result_view:
         ui->statusBar->showMessage("result view");
         saveGrids();
+
         break;
     default:
         break;

@@ -38,7 +38,12 @@ SOURCES += \
     src_v4l2.cpp \
     cameracalibrator.cpp \
     gpurender.cpp \
-    exposure_compensator.cpp
+    exposure_compensator.cpp \
+    Material.cpp \
+    ModelLoader.cpp \
+    MRT.cpp \
+    VBO.cpp \
+    svgpurender.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -52,7 +57,12 @@ HEADERS += \
     src_v4l2.hpp \
     cameracalibrator.h \
     gpurender.h \
-    exposure_compensator.hpp
+    exposure_compensator.hpp \
+    Material.hpp \
+    ModelLoader.hpp \
+    MRT.hpp \
+    VBO.hpp \
+    svgpurender.h
 
 FORMS += \
         mainwindow.ui
@@ -60,7 +70,8 @@ FORMS += \
 RESOURCES += \
     resources.qrc
 
-DISTFILES +=
+DISTFILES += \
+    fshader.fsh
 
 target.path = /home/root/nxp-mysv-autocalib
 INSTALLS += target
