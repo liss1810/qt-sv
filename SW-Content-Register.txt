@@ -1,0 +1,43 @@
+
+NXP Software Content Register
+
+--------------------------------------------
+
+Package:                   surround-view-3D_1.1_beta
+
+Outgoing License:          LA_OPT_BASE_LICENSE v26
+
+License Files:             EULA
+
+Package Category:          Graphics
+
+Type of content:           Sources, binaries, calibration data, calibration templates, 3D-printer model, images, and car model files
+
+Description and comments:  Surround view 3D sample application
+
+Release Location:          NXP.com
+
+Origin:                    NXP (proprietary) 
+                           OpenGL Mathematics (MIT) - https://github.com/g-truc/glm 
+                           OpenCV (BSD-3-clause) - https://sourceforge.net/projects/opencvlibrary 
+                           Wayland and weston (MIT) - https://github.com/krh/weston/blob/master/clients/simple-egl.c 
+ 
+
+
+Repository:                OCamCalib
+
+Outgoing License:          GPL-2.0
+
+License File:              COPYING-GPL-2
+
+Type of Content:           source, binary
+
+Description and comments:  Omnidirectional camera calibration toolbox
+
+Release Location:          https://source.codeaurora.org/external/imx/OCamCalib
+
+Binary Location:           /Tools/OCamCalib
+
+Origin:                    NXP (GPL-2.0)
+                           OCamCalib (GPL-2.0) - https://sites.google.com/site/scarabotix/ocamcalib-toolbox/ocamcalib-toolbox-download-page 
+
