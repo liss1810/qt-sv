@@ -1,7 +1,7 @@
 #ifndef SV_GPU_RENDER_H
 #define SV_GPU_RENDER_H
 
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
@@ -19,6 +19,10 @@
 #include "MRT.hpp"
 #include "src_v4l2.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 QT_BEGIN_NAMESPACE
 class QGestureEvent;
 QT_END_NAMESPACE
@@ -31,15 +35,15 @@ extern "C"
 #include <pthread.h>
 }
 
-class SvGpuRender : public QOpenGLWidget, protected QOpenGLExtraFunctions
+class SvGpuRender : public QOpenGLWindow, protected QOpenGLExtraFunctions
 {
     Q_OBJECT
 
 public:
-   explicit SvGpuRender(vector<v4l2Camera> &v4lCams, QWidget *parent = 0);
+   explicit SvGpuRender(vector<v4l2Camera> *v4lCams, QWindow *parent = 0);
     ~SvGpuRender();
     int setParam(int camNum, int camWidth, int camHeight, float modelScale[]);
-    void setPath(const std::string &p);
+    void setPath(const std::string &p) {path = p;}
 
 public slots:
 
@@ -48,6 +52,7 @@ protected:
     void paintGL() Q_DECL_OVERRIDE;
     void resizeGL(int w, int h) Q_DECL_OVERRIDE;
     bool event(QEvent *e) Q_DECL_OVERRIDE;
+    void mouseDoubleClickEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
 
 #define PLANES 4
 
@@ -76,7 +81,7 @@ private:
     QOpenGLShaderProgram carModelProgram;
     QOpenGLShaderProgram showTexProgram;
     GLuint mvpUniform, mvUniform, mnUniform;
-    vector<v4l2Camera> &v4l2_cameras;	// Camera buffers
+    vector<v4l2Camera> *v4l2_cameras;	// Camera buffers
     GLuint VAO[VAO_NUM];
     vector<int> vertices;
 

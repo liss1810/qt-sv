@@ -15,5 +15,7 @@
         <file>ec.fsh</file>
         <file>model.fsh</file>
         <file>model.vsh</file>
+        <file>tex.vsh</file>
+        <file>tex.fsh</file>
     </qresource>
 </RCC>

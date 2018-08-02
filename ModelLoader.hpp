@@ -53,7 +53,7 @@ public:
 	~ModelLoader(void);
 
     bool Initialize(const std::string &path);
-	string LoadFileName();
+    string LoadFileName(const std::string &path);
 	void Draw(GLuint shader);
 
 };

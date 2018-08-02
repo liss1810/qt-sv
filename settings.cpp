@@ -41,6 +41,9 @@ int Settings::load(const std::string &path)
     for(int i = 0; i < cameraNum; i++) {
         cv::FileNode sn = n["camera" + std::to_string(i + 1)];
         std::shared_ptr<CamParam> pcam(new CamParam);
+        sn["devId"] >> pcam->devId;
+        sn["height"] >> pcam->height;
+        sn["width"] >> pcam->width;
         sn["sf"] >> pcam->sf;
         sn["roi"] >> pcam->roi;
         sn["contour_min_size"] >> pcam->contourMinSize;
@@ -94,6 +97,9 @@ void Settings::save(const std::string &path)
        << "number" << cameraNum;
     for(uint i = 0; i < camparams.size(); i++) {
         fs << "camera" + std::to_string(i + 1) << "{"
+           << "devId" << camparams.at(i)->devId
+           << "height" << camparams.at(i)->height
+           << "width" << camparams.at(i)->width
            << "sf" << camparams[i]->sf
            << "roi" << camparams[i]->roi
            << "contour_min_size" << camparams[i]->contourMinSize

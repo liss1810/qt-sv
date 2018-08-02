@@ -44,12 +44,13 @@ glm::vec3 car_scale = glm::vec3(1.0f, 1.0f, 1.0f);
 #define CAM_LIMIT_ZOOM_MIN -11.5f
 #define CAM_LIMIT_ZOOM_MAX -2.5f
 
-SvGpuRender::SvGpuRender(vector<v4l2Camera> &v4lCams, QWidget *parent) :
-    QOpenGLWidget(parent, Qt::Popup | Qt::Dialog),
+SvGpuRender::SvGpuRender(vector<v4l2Camera> *v4lCams, QWindow *parent) :
+    QOpenGLWindow(NoPartialUpdate, parent),
     pFNglTexDirectVIVMap(NULL),
-    pFNglTexDirectInvalidateVIV(NULL),
-    v4l2_cameras(v4lCams)
+    pFNglTexDirectInvalidateVIV(NULL)
 {
+    v4l2_cameras = v4lCams;
+
     pFNglTexDirectVIVMap = (PFNGLTEXDIRECTVIVMAP)
             eglGetProcAddress("glTexDirectVIVMap");
     if(pFNglTexDirectVIVMap == NULL) {
@@ -84,6 +85,8 @@ void SvGpuRender::initializeGL()
 {
     initializeOpenGLFunctions();
 
+    mrt = new MRT(1920, 1080);
+    qInfo() << width() <<  height();
     if (programsInit() == -1)
     {
         exit(-1);
@@ -94,9 +97,9 @@ void SvGpuRender::initializeGL()
         return;
     }
 
-//    timer = new QTimer(this);
-//    connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-//    timer->start(16);
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(update()));
+    timer->start(16);
 }
 
 void SvGpuRender::paintGL()
@@ -133,11 +136,11 @@ void SvGpuRender::paintGL()
         for (int camera = 0; camera < CAMERA_NUM; camera++)
         {
             // Lock the camera frame
-            pthread_mutex_lock(&v4l2_cameras[camera].th_mutex);
+            pthread_mutex_lock(&(*v4l2_cameras)[camera].th_mutex);
 
             // Get index of the newes camera buffer
-            if (v4l2_cameras[camera].fill_buffer_inx == -1) i = 0;
-            else  i = v4l2_cameras[camera].fill_buffer_inx;
+            if ((*v4l2_cameras)[camera].fill_buffer_inx == -1) i = 0;
+            else  i = (*v4l2_cameras)[camera].fill_buffer_inx;
 
 
             glActiveTexture(GL_TEXTURE1);
@@ -161,7 +164,7 @@ void SvGpuRender::paintGL()
             glBindVertexArray(0);
 
             // Release camera frame
-            pthread_mutex_unlock(&v4l2_cameras[camera].th_mutex);
+            pthread_mutex_unlock(&(*v4l2_cameras)[camera].th_mutex);
         }
 
 
@@ -175,11 +178,11 @@ void SvGpuRender::paintGL()
         for (int camera = 0; camera < CAMERA_NUM; camera++)
         {
             // Lock the camera frame
-            pthread_mutex_lock(&v4l2_cameras[camera].th_mutex);
+            pthread_mutex_lock(&(*v4l2_cameras)[camera].th_mutex);
 
             // Get index of the newes camera buffer
-            if (v4l2_cameras[camera].fill_buffer_inx == -1) i = 0;
-            else  i = v4l2_cameras[camera].fill_buffer_inx;
+            if ((*v4l2_cameras)[camera].fill_buffer_inx == -1) i = 0;
+            else  i = (*v4l2_cameras)[camera].fill_buffer_inx;
 
             // Set gain value for the camera
 //            glUniform4f(locGain[1], gain->Gains::gain[camera][0], gain->Gains::gain[camera][1], gain->Gains::gain[camera][2], 1.0); // Set gain value for the camera
@@ -198,7 +201,7 @@ void SvGpuRender::paintGL()
             glBindVertexArray(0);
 
             // Release camera frame
-            pthread_mutex_unlock(&v4l2_cameras[camera].th_mutex);
+            pthread_mutex_unlock(&(*v4l2_cameras)[camera].th_mutex);
         }
 
         // Render car model
@@ -322,6 +325,7 @@ void SvGpuRender::resizeGL(int w, int h)
 {
     // Calculate aspect ratio
     qreal aspect = qreal(w) / qreal(h ? h : 1);
+    gProjection = glm::perspective(45.0f, (float)w / (float)h, 0.1f, 100.0f);
 
 //    camera3D->setAspectRatio(aspect);
 }
@@ -368,9 +372,13 @@ bool SvGpuRender::event(QEvent *e)
     return QOpenGLWindow::event(e);
 }
 
+void SvGpuRender::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    destroy();
+}
+
 int SvGpuRender::setParam(int camNum, int camWidth, int camHeight, float modelScale[3])
 {
-
     camera_num = camNum;
     if(camera_num > CAMERA_NUM) camera_num = CAMERA_NUM;
 
@@ -380,16 +388,11 @@ int SvGpuRender::setParam(int camNum, int camWidth, int camHeight, float modelSc
         g_in_height.push_back(camHeight);
     }
 
-    gProjection = glm::perspective(45.0f, (float)width() / (float)height(), 0.1f, 100.0f);
+//    gProjection = glm::perspective(45.0f, (float)w / (float)h, 0.1f, 100.0f);
     car_scale = glm::vec3(modelScale[0], modelScale[1], modelScale[2]);
-    mrt = new MRT(width(), height());
+//    mrt = new MRT(width(), height());
 
     return(0);
-}
-
-void SvGpuRender::setPath(const string &p)
-{
-    path = p;
 }
 
 int SvGpuRender::programsInit()
@@ -407,16 +410,16 @@ int SvGpuRender::programsInit()
     renderProgramWB.link();
 
     carModelProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/model.vsh");
-    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/model.fshs");
+    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/model.fsh");
     carModelProgram.link();
 
     mvpUniform = carModelProgram.uniformLocation("mvp");
     mvUniform = carModelProgram.uniformLocation("mv");
     mnUniform = carModelProgram.uniformLocation("mn");
 
-//    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, s_v_shader_tex);
-//    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, s_f_shader_tex);
-//    showTexProgram.link();
+    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/tex.vsh");
+    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/tex.fsh");
+    showTexProgram.link();
 
     return (0);
 }
@@ -435,6 +438,7 @@ bool SvGpuRender::RenderInit()
     mrt->Initialize();
 //    fontRenderer->Initialize();
 //    fontRenderer->SetShader(fontProgram.getHandle());
+
     return (GL_NO_ERROR == glGetError());
 }
 
@@ -445,7 +449,7 @@ void SvGpuRender::camTexInit()
     for (int j = 0; j < VAO_NUM; j++)
     {
         int vrt;
-        string array = path + "./array" + to_string((int)(j / 2) + 1) + to_string(j % 2 + 1);
+        string array = path + "/array" + to_string((int)(j / 2) + 1) + to_string(j % 2 + 1);
         vLoad(&vVertices[j], &vrt, array);
         vertices.push_back(vrt);
     }
@@ -466,7 +470,7 @@ void SvGpuRender::camTexInit()
     {
         // j camera mask init
         texture2dInit(&txtMask[j]);
-        string mask_name = path + "./mask" + to_string(j) + ".jpg";
+        string mask_name = path + "/mask" + to_string(j) + ".jpg";
         Mat camera_mask = imread(mask_name, CV_LOAD_IMAGE_GRAYSCALE);
         mask.push_back(camera_mask);
 
@@ -529,6 +533,9 @@ void SvGpuRender::ecTexInit()
 
 inline void SvGpuRender::mapFrame(int buf_index, int camera)
 {
-    (*pFNglTexDirectVIVMap)(GL_TEXTURE_2D, g_in_width[camera], g_in_height[camera], GL_PIXEL_TYPE, (GLvoid **)& v4l2_cameras[camera].buffers[buf_index].start, (const GLuint *)(&v4l2_cameras[camera].buffers[buf_index].offset));
+    (*pFNglTexDirectVIVMap)(GL_TEXTURE_2D, g_in_width[camera], g_in_height[camera],
+                            GL_PIXEL_TYPE,
+                            (GLvoid **)& (*v4l2_cameras)[camera].buffers[buf_index].start,
+                            (const GLuint *)(&(*v4l2_cameras)[camera].buffers[buf_index].offset));
     (*pFNglTexDirectInvalidateVIV)(GL_TEXTURE_2D);
 }

@@ -8,6 +8,9 @@ class Settings
 {
 public:
     struct CamParam {
+        int devId = -1;
+        int width = 0;
+        int height = 0;
         float sf = 7;
         float roi = 0.5;
         int contourMinSize = 200;

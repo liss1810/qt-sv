@@ -41,7 +41,6 @@ ModelLoader::ModelLoader()
 {
 }
 
-
 ModelLoader::~ModelLoader(void)
 {
 	for(MaterialListIter iterator = materials.begin(); iterator != materials.end(); iterator++)
@@ -61,10 +60,10 @@ ModelLoader::~ModelLoader(void)
 	materials.clear();
 
 }
-string ModelLoader::LoadFileName()
+string ModelLoader::LoadFileName(const string &path)
 {
 	string line;
-	ifstream myfile(CONFIG_FILE.c_str());
+    ifstream myfile((path + CONFIG_FILE).c_str());
 	if (myfile.is_open())
 	{
 		std::stringstream buffer;
@@ -73,7 +72,7 @@ string ModelLoader::LoadFileName()
 	}
 	else 
 	{
-		cout << "Unable to open file: " << CONFIG_FILE << endl;
+        cout << "Unable to open file: " << path + CONFIG_FILE << endl;
 	}
 	
 	return line;
@@ -83,7 +82,7 @@ bool ModelLoader::Initialize(const string &path)
 {
 	bool result = true;
 
-	string filename = LoadFileName();
+    string filename = LoadFileName(path);
 	if (filename.empty())
 		return false;
 	

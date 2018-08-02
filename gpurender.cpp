@@ -29,12 +29,6 @@
 #define GL_CLAMP_TO_BORDER_VIV         0x812D
 #endif
 
-
-//Model Loader
-glm::mat4 gProjection;	// Initialization is needed
-float rx = 0.0f, ry = 0.0f, px = 0.0f, py = 0.0f, pz = -10.0f;
-glm::vec3 car_scale = glm::vec3(1.0f, 1.0f, 1.0f);
-
 #define CAR_ORIENTATION_X 90.0f
 #define CAR_ORIENTATION_Y 270.0f
 #define CAM_LIMIT_RY_MIN -1.57f
@@ -449,7 +443,6 @@ void GpuRender::resizeGL(int w, int h)
 {
     // Calculate aspect ratio
     float aspect = float(w) / float(h ? h : 1);
-    gProjection = glm::perspective(45.0f, aspect, 0.1f, 100.0f);
 //    camera3D->setAspectRatio(aspect);
 }
 

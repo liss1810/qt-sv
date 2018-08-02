@@ -16,7 +16,7 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    appPath(QApplication::applicationDirPath().toStdString()),
+    appPath(QApplication::applicationDirPath().toStdString() + "/"),
     contentPath(appPath + "/Content/")
 {
     ui->setupUi(this);
@@ -68,7 +68,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->statusBar->showMessage("fisheye view");
 
-    state = result_view;
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &MainWindow::updateRender);
     timer->start(50);
@@ -258,17 +257,19 @@ void MainWindow::switchState(viewStates new_state)
         ui->glRender->setRenderState(GpuRender::RenderGrids);
         break;
     case result_view:
+    {
         ui->statusBar->showMessage("result view");
         saveGrids();
         timer->stop();
-//        SvGpuRender *svRender = new SvGpuRender(ui->glRender->v4l2_cameras, this);
-//        svRender->setAttribute(Qt::WA_DeleteOnClose);
-//        svRender->setPath(appPath);
-//        svRender->setParam(settings->cameraNum, camCalibs.at(0)->model.model.img_size.width,
-//                     camCalibs.at(0)->model.model.img_size.height,
-//                     settings->model_scale);
-//        svRender->showFullScreen();
+        SvGpuRender *svRender = new SvGpuRender(&ui->glRender->v4l2_cameras);
+        svRender->setPath(appPath);
+        svRender->setParam(settings->cameraNum, camCalibs.at(0)->model.model.img_size.width,
+                     camCalibs.at(0)->model.model.img_size.height,
+                     settings->model_scale);
+        svRender->showFullScreen();
+
         break;
+    }
     default:
         break;
     }
