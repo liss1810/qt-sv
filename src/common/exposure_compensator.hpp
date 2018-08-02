@@ -36,7 +36,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "cameracalibrator.h"
+#include "calibration/cameracalibrator.h"
 #include "lines.hpp"
 #define CAMERA_HPP_EXIST
 

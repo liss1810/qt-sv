@@ -397,28 +397,28 @@ int SvGpuRender::setParam(int camNum, int camWidth, int camHeight, float modelSc
 
 int SvGpuRender::programsInit()
 {
-    renderProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/mvp.vsh");
-    renderProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/blend_ec.fsh");
+    renderProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/mvp.vsh");
+    renderProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/blend_ec.fsh");
     renderProgram.link();
 
 //    exposureCorrectionProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, s_v_shader);
 //    exposureCorrectionProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, s_f_shader);
 //    exposureCorrectionProgram.link();
 
-    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/mvp.vsh");
-    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/ec.fsh");
+    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/mvp.vsh");
+    renderProgramWB.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/ec.fsh");
     renderProgramWB.link();
 
-    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/model.vsh");
-    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/model.fsh");
+    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/model.vsh");
+    carModelProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/model.fsh");
     carModelProgram.link();
 
     mvpUniform = carModelProgram.uniformLocation("mvp");
     mvUniform = carModelProgram.uniformLocation("mv");
     mnUniform = carModelProgram.uniformLocation("mn");
 
-    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/tex.vsh");
-    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/tex.fsh");
+    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/tex.vsh");
+    showTexProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/tex.fsh");
     showTexProgram.link();
 
     return (0);

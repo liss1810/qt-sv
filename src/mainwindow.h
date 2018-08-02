@@ -4,12 +4,12 @@
 #include <QMainWindow>
 #include <QPushButton>
 
-#include "cameracalibrator.h"
-#include "grid.hpp"
-#include "masks.hpp"
-#include "settings.h"
+#include "calibration/cameracalibrator.h"
+#include "calibration/grid.hpp"
+#include "calibration/masks.hpp"
+#include "common/settings.h"
 
-#include "gpurender.h"
+#include "render/gpurender.h"
 
 namespace Ui {
 class MainWindow;

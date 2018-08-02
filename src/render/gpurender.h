@@ -26,7 +26,7 @@
 #include <GLES2/gl2ext.h>
 
 //Capturing
-#include "src_v4l2.hpp"
+#include "common/src_v4l2.hpp"
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <sys/mman.h>

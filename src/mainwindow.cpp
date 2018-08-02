@@ -1,9 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-#include "gpurender.h"
-#include "exposure_compensator.hpp"
-#include "svgpurender.h"
+#include "render/gpurender.h"
+#include "common/exposure_compensator.hpp"
+#include "render/svgpurender.h"
 
 #include <QFile>
 #include <QTimer>

@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file>render/shader/blend_ec.fsh</file>
+        <file>render/shader/ec.fsh</file>
+        <file>render/shader/fshader.fsh</file>
+        <file>render/shader/line.fsh</file>
+        <file>render/shader/line.vsh</file>
+        <file>render/shader/model.fsh</file>
+        <file>render/shader/model.vsh</file>
+        <file>render/shader/mvp.vsh</file>
+        <file>render/shader/tex.fsh</file>
+        <file>render/shader/tex.vsh</file>
+        <file>render/shader/vshader.vsh</file>
+    </qresource>
+</RCC>

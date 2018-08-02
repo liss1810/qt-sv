@@ -27,8 +27,6 @@
 #include <iostream>
 #include <assert.h>
 
-#include "shaders.hpp"
-
 using namespace std;
 
 MRT::MRT(int _width, int _height)

@@ -35,7 +35,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "cameracalibrator.h"
-#include "lines.hpp"
+#include "common/lines.hpp"
 
 using namespace cv;
 using namespace std;

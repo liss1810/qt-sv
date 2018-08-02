@@ -15,9 +15,9 @@
 //#include "cameraparameter.h"
 //#include "camera3d.h"
 
-#include "ModelLoader.hpp"
+#include "render/model_loader/ModelLoader.hpp"
 #include "MRT.hpp"
-#include "src_v4l2.hpp"
+#include "common/src_v4l2.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

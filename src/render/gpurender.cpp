@@ -1,5 +1,4 @@
 #include "gpurender.h"
-#include "shaders.hpp"
 
 #include <glm/gtx/string_cast.hpp>
 #include <glm/glm.hpp>
@@ -366,14 +365,14 @@ void GpuRender::initializeGL()
     initializeOpenGLFunctions();
 
     QOpenGLShaderProgram *m_program = new QOpenGLShaderProgram;
-    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/vshader.vsh");
-    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/fshader.fsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/vshader.vsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/fshader.fsh");
     m_program->link();
     renderPrograms.push_back(m_program);
 
     m_program = new QOpenGLShaderProgram;
-    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/line.vsh");
-    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/line.fsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/render/shader/line.vsh");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/render/shader/line.fsh");
     m_program->link();
     renderPrograms.push_back(m_program);
 

@@ -30,39 +30,38 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    src_contours.cpp \
-    defisheye.cpp \
-    grid.cpp \
-    masks.cpp \
-    settings.cpp \
-    src_v4l2.cpp \
-    cameracalibrator.cpp \
-    gpurender.cpp \
-    exposure_compensator.cpp \
-    Material.cpp \
-    ModelLoader.cpp \
-    MRT.cpp \
-    VBO.cpp \
-    svgpurender.cpp
+    calibration/src_contours.cpp \
+    calibration/defisheye.cpp \
+    calibration/grid.cpp \
+    calibration/masks.cpp \
+    calibration/cameracalibrator.cpp \
+    common/settings.cpp \
+    common/src_v4l2.cpp \
+    render/gpurender.cpp \
+    common/exposure_compensator.cpp \
+    render/model_loader/Material.cpp \
+    render/model_loader/ModelLoader.cpp \
+    render/MRT.cpp \
+    render/model_loader/VBO.cpp \
+    render/svgpurender.cpp
 
 HEADERS += \
         mainwindow.h \
-    src_contours.hpp \
-    defisheye.hpp \
-    grid.hpp \
-    masks.hpp \
-    lines.hpp \
-    settings.h \
-    shaders.hpp \
-    src_v4l2.hpp \
-    cameracalibrator.h \
-    gpurender.h \
-    exposure_compensator.hpp \
-    Material.hpp \
-    ModelLoader.hpp \
-    MRT.hpp \
-    VBO.hpp \
-    svgpurender.h
+    calibration/src_contours.hpp \
+    calibration/defisheye.hpp \
+    calibration/grid.hpp \
+    calibration/masks.hpp \
+    calibration/cameracalibrator.h \
+    common/lines.hpp \
+    common/settings.h \
+    common/src_v4l2.hpp \
+    render/gpurender.h \
+    common/exposure_compensator.hpp \
+    render/model_loader/Material.hpp \
+    render/model_loader/ModelLoader.hpp \
+    render/MRT.hpp \
+    render/model_loader/VBO.hpp \
+    render/svgpurender.h
 
 FORMS += \
         mainwindow.ui
