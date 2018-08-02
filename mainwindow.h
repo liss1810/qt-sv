@@ -50,7 +50,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    vector<camera_view> cam_views;	// View indexes
+    std::vector<v4l2Camera> v4l2_cameras;
     vector<CameraCalibrator *> camCalibs;
     vector<CurvilinearGrid*> grids;	// Grids
     const std::string appPath;
@@ -64,6 +64,9 @@ private:
 
     void saveGrids();
     void switchState(viewStates new_state);
+    int addCamera(int devId, int width, int height);
+    int runCamera();
+    Mat takeFrame(int index);
 };
 
 #endif // MAINWINDOW_H

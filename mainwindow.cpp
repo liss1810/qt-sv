@@ -46,24 +46,17 @@ MainWindow::MainWindow(QWidget *parent) :
         }
 
         camCalibs.push_back(pcam);
+
+        if (addCamera(settings->camparams[i]->devId,
+                      settings->camparams[i]->width,
+                      settings->camparams[i]->height)) {
+            std::cout << "add camera error" << std::endl;
+        }
     }
     CameraCalibrator::normTemplate(camCalibs);
 
-    for(uint i = 0; i < camCalibs.size(); i++) {
-        camera_view cam_view;
-        cam_view.camera_index = ui->glRender->addCamera(i, camCalibs.at(i)->model.model.img_size.width,
-                                                       camCalibs.at(i)->model.model.img_size.height);
-//        cam_view.mesh_index.push_back(calibRender->addMesh(dataPath +
-//                                                           "/meshes/original/mesh" +
-//                                                           to_string(i + 1)));
-        cam_views.push_back(cam_view);
-    }
-
-    for(uint i = 0; i < camCalibs.size(); i++) {
-        if(ui->glRender->runCamera(i)) {
-            std::cout << "camera " << i <<
-                         " start failed" << std::endl;
-        }
+    if(runCamera()) {
+        std::cout << "camera start failed" << std::endl;
     }
 
     ui->statusBar->showMessage("fisheye view");
@@ -80,6 +73,11 @@ MainWindow::~MainWindow()
 
     delete ui;
     delete settings;
+
+    for(v4l2Camera &cap : v4l2_cameras) {
+        cap.stopCapturing();
+    }
+
     for(CameraCalibrator *pcam : camCalibs) {
         delete pcam;
     }
@@ -172,7 +170,7 @@ int MainWindow::getGrids(float **gl_grid)
 
 int MainWindow::searchContours(int index)
 {
-    Mat img = ui->glRender->takeFrame(cam_views[index].camera_index);
+    Mat img = takeFrame(index);
     if (camCalibs[index]->setExtrinsic(img) != 0)
         return (-1);
 
@@ -181,6 +179,7 @@ int MainWindow::searchContours(int index)
 
 void MainWindow::updateRender()
 {
+
     ui->glRender->update();
 }
 
@@ -273,6 +272,52 @@ void MainWindow::switchState(viewStates new_state)
     default:
         break;
     }
+}
+
+int MainWindow::addCamera(int devId, int width, int height)
+{
+    string dev_name = "/dev/video" + to_string(devId);
+
+    v4l2Camera v4l2_camera(width, height, CAM_PIXEL_TYPE, V4L2_MEMORY_MMAP, dev_name.c_str());
+    v4l2_cameras.push_back(v4l2_camera);
+
+    int current_index = v4l2_cameras.size() - 1;
+
+    if (v4l2_cameras[current_index].captureSetup() == -1)
+    {
+        cout << "v4l_capture_setup failed camera " << index << endl;
+        return (-1);
+    }
+
+    return 0;
+}
+
+int MainWindow::runCamera()
+{
+    for(v4l2Camera &v4l : v4l2_cameras) {
+        if(v4l.startCapturing())
+            return -1;
+        if(v4l.getFrame())
+            return -1;
+    }
+    return 0;
+}
+
+Mat MainWindow::takeFrame(int index)
+{
+    Mat out;
+
+    // Lock the camera frame
+    pthread_mutex_lock(&v4l2_cameras[index].th_mutex);
+
+    Mat rgba(v4l2_cameras[index].getHeight(),
+             v4l2_cameras[index].getWidth(),
+             CV_8UC4, (char*)v4l2_cameras[index].buffers[v4l2_cameras[index].fill_buffer_inx].start);
+    cvtColor(rgba, out, CV_RGBA2RGB);
+
+    pthread_mutex_unlock(&v4l2_cameras[index].th_mutex);
+
+    return out;
 }
 
 void MainWindow::on_backButton_clicked()

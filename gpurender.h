@@ -64,17 +64,22 @@ public:
         RenderGrids,
     };
 
+    struct textureBuffer
+    {
+        int width = 0;
+        int height = 0;
+        unsigned char *start = NULL;
+        size_t offset = 0;
+    };
+
     vector<int> mesh_index;
     std::vector<v4l2Camera> v4l2_cameras;
 
     int setProgram(uint index);
 
-    int addCamera(int index, int width, int height);
     int addMesh(string filename);
-    int runCamera(int index);
     void reloadMesh(int index, string filename);
     int changeMesh(Mat xmap, Mat ymap, int density, Point2f top, int index);
-    Mat takeFrame(int index);
 
     int getVerticesNum(uint num) {if (num < v_obj.size()) return (v_obj[num].num); return (-1);}
 

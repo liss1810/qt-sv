@@ -70,10 +70,6 @@ GpuRender::~GpuRender()
     for(QOpenGLShaderProgram *m_program : renderPrograms)
         delete m_program;
 
-    for(v4l2Camera &cap : v4l2_cameras) {
-        cap.stopCapturing();
-    }
-
     for(vertices_obj &obj : v_obj) {
         glDeleteTextures(1, &obj.tex);
         glDeleteBuffers(1, &obj.vbo);
@@ -84,24 +80,6 @@ GpuRender::~GpuRender()
 int GpuRender::setProgram(uint index)
 {
     currentProgram = index;
-}
-
-int GpuRender::addCamera(int index, int width, int height)
-{
-    string dev_name = "/dev/video" + to_string(index);
-
-    v4l2Camera v4l2_camera(width, height, CAM_PIXEL_TYPE, V4L2_MEMORY_MMAP, dev_name.c_str());
-    v4l2_cameras.push_back(v4l2_camera);
-
-    int current_index = v4l2_cameras.size() - 1;
-
-    if (v4l2_cameras[current_index].captureSetup() == -1)
-    {
-        cout << "v4l_capture_setup failed camera " << index << endl;
-        return (-1);
-    }
-
-    return (current_index);
 }
 
 int GpuRender::addMesh(string filename)
@@ -129,13 +107,6 @@ int GpuRender::addMesh(string filename)
     mesh_index.push_back(v_obj.size() - 1);
 
     return (v_obj.size() - 1);
-}
-
-int GpuRender::runCamera(int index)
-{
-    if (v4l2_cameras[index].startCapturing() == -1) return (-1);
-    if (v4l2_cameras[index].getFrame() == -1) return (-1);
-    return 0;
 }
 
 void GpuRender::reloadMesh(int index, string filename)
@@ -270,23 +241,6 @@ int GpuRender::changeMesh(Mat xmap, Mat ymap, int density, Point2f top, int inde
     doneCurrent();
 
     return (0);
-}
-
-Mat GpuRender::takeFrame(int index)
-{
-    Mat out;
-
-    // Lock the camera frame
-    pthread_mutex_lock(&v4l2_cameras[index].th_mutex);
-
-    Mat rgba(v4l2_cameras[index].getHeight(),
-             v4l2_cameras[index].getWidth(),
-             CV_8UC4, (char*)v4l2_cameras[index].buffers[v4l2_cameras[index].fill_buffer_inx].start);
-    cvtColor(rgba, out, CV_RGBA2RGB);
-
-    pthread_mutex_unlock(&v4l2_cameras[index].th_mutex);
-
-    return out;
 }
 
 int GpuRender::addBuffer(GLfloat *buf, int num)
